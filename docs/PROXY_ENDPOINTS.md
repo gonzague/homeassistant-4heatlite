@@ -418,6 +418,12 @@ Debug endpoint — tests cloud connectivity and shows proxy state. Not a 4HEAT c
 
 ---
 
+## DeviceKey Origin
+
+The DeviceKey is **generated server-side by Azure** during the module's first `POST /api/devices/register` call. It is not pre-flashed on the device. After first registration, the key persists across reboots and does not change on subsequent registrations. There is no local protocol (TCP 2WC, UDP CF4, or BLE) that exposes the DeviceKey.
+
+---
+
 ## Values Decoding
 
 The `Values` array in `/store` contains hex-encoded register data. Each string is identified by its prefix:

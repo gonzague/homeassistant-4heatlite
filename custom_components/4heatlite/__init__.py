@@ -17,6 +17,7 @@ from .const import (
     CONF_CACHED_SCHEDULE,
     CONF_CACHED_SCHEDULES,
     CONF_DEVICE_ID,
+    CONF_MODULE_ADDRESS,
     CONF_PROXY_MODE,
     CONF_SCHEDULE_ENABLED,
     DATA_COORDINATOR,
@@ -96,10 +97,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         proxy_state = {"devices": {}, "hosts": {}, "pending": {}, "hass": hass}
         hass.data[DOMAIN][PROXY_STATE] = proxy_state
 
+    module_address = entry.options.get(CONF_MODULE_ADDRESS, "") or host
+
     device_entry = {
         "coordinator": coordinator,
         "proxy_mode": proxy_mode,
         "host": host,
+        "module_address": module_address,
         "entry_id": entry.entry_id,
         "device_key": entry.data.get("device_key", ""),
     }

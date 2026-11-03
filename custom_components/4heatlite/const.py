@@ -62,6 +62,7 @@ ERROR_NAMES = {
 # Proxy configuration
 CONF_DEVICE_ID = "device_id"
 CONF_DEVICE_KEY = "device_key"
+CONF_MODULE_ADDRESS = "module_address"
 CONF_PROXY_MODE = "proxy_mode"
 CONF_SCHEDULE_ENABLED = "schedule_enabled"  # v2 migration only
 CONF_CACHED_SCHEDULE = "cached_schedule"  # v2 migration only

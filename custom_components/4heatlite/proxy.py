@@ -120,11 +120,11 @@ def _promote_pending(state, device_id, remote_ip):
     """Move a pending entry to devices when device_id is auto-detected."""
     pending = state.get("pending", {})
     devices = state.setdefault("devices", {})
-    hosts = state.setdefault("hosts", {})
 
     matched_eid = None
     for eid, pentry in pending.items():
-        if pentry.get("host") == remote_ip:
+        module_addr = pentry.get("module_address") or pentry.get("host")
+        if module_addr == remote_ip:
             matched_eid = eid
             break
 
@@ -132,7 +132,6 @@ def _promote_pending(state, device_id, remote_ip):
         entry = pending.pop(matched_eid)
         entry["entry_id"] = matched_eid
         devices[device_id] = entry
-        hosts[remote_ip] = device_id
         _LOGGER.info(
             "Auto-detected device ID %s from %s (entry %s)",
             device_id,
@@ -147,9 +146,9 @@ def _promote_pending(state, device_id, remote_ip):
 def _validate_module(state, remote_ip):
     """Validate that a request comes from a configured non-direct-mode module.
 
-    Checks active devices by configured host AND by the runtime hosts map
-    (which tracks the actual remote IP seen during register, covering NAT
-    scenarios where request.remote differs from the configured host).
+    Checks request.remote against the configured module_address (falling back
+    to host) for each device entry. Only accepts requests whose source IP
+    matches the user-configured address.
 
     Returns (entry, device_id) for active devices, (pending_entry, None) for
     pending entries, or (None, None) if the caller is not recognised or the
@@ -159,26 +158,19 @@ def _validate_module(state, remote_ip):
         return None, None
 
     devices = state.get("devices", {})
-    hosts = state.get("hosts", {})
-
-    did = hosts.get(remote_ip)
-    if did and did in devices:
-        entry = devices[did]
-        if entry.get("proxy_mode") == PROXY_MODE_DIRECT:
-            return None, None
-        return entry, did
-
     for did, entry in devices.items():
-        if entry.get("host") == remote_ip:
-            if entry.get("proxy_mode") == PROXY_MODE_DIRECT:
-                return None, None
+        if entry.get("proxy_mode") == PROXY_MODE_DIRECT:
+            continue
+        module_addr = entry.get("module_address") or entry.get("host")
+        if module_addr == remote_ip:
             return entry, did
 
     pending = state.get("pending", {})
     for _eid, pentry in pending.items():
-        if pentry.get("host") == remote_ip:
-            if pentry.get("proxy_mode") == PROXY_MODE_DIRECT:
-                return None, None
+        if pentry.get("proxy_mode") == PROXY_MODE_DIRECT:
+            continue
+        module_addr = pentry.get("module_address") or pentry.get("host")
+        if module_addr == remote_ip:
             return pentry, None
 
     return None, None
@@ -215,35 +207,33 @@ class StoveRegisterView(HomeAssistantView):
         )
         _LOGGER.debug("Register body: %s", json.dumps(body, separators=(",", ":")))
 
-        entry, _ = _lookup_device(self._state, device_id=device_id)
-        if not entry and device_id and remote_ip:
-            entry = _promote_pending(self._state, device_id, remote_ip)
+        entry, validated_did = _validate_module(self._state, remote_ip)
 
         if not entry:
-            _LOGGER.debug("Register: unknown device %s from %s", device_id, remote_ip)
+            _LOGGER.debug("Register: rejected request from %s", remote_ip)
             return self.json({"Key": ""})
 
-        if entry.get("proxy_mode") == PROXY_MODE_DIRECT:
-            _LOGGER.debug("Register: device %s in direct mode, ignoring", device_id)
-            return self.json({"Key": ""})
+        if validated_did is None and device_id and remote_ip:
+            promoted = _promote_pending(self._state, device_id, remote_ip)
+            if promoted:
+                entry = promoted
+                validated_did = device_id
 
-        if remote_ip and device_id:
-            hosts = self._state.setdefault("hosts", {})
-            if hosts.get(remote_ip) != device_id:
-                hosts[remote_ip] = device_id
-                _LOGGER.info(
-                    "Register: mapped remote %s to device %s", remote_ip, device_id
-                )
+        if validated_did and device_id and device_id != validated_did:
+            _LOGGER.warning(
+                "Register: device_id mismatch from %s: expected %s, got %s",
+                remote_ip, validated_did, device_id,
+            )
 
         device_key = entry.get("device_key", "")
         if not device_key:
             _LOGGER.warning(
                 "No DeviceKey for device %s — reconfigure the integration",
-                device_id,
+                validated_did or device_id,
             )
 
         if _device_should_mirror(entry):
-            _LOGGER.info("Register: mirroring to Azure for device %s", device_id)
+            _LOGGER.info("Register: mirroring to Azure for device %s", validated_did or device_id)
             hass = self._state.get("hass")
             if hass:
                 hass.async_create_task(
@@ -266,19 +256,9 @@ class StoveCommandsView(HomeAssistantView):
     async def get(self, request):
         remote_ip = request.remote
 
-        validated, device_id = _validate_module(self._state, remote_ip)
-        if not validated:
-            _LOGGER.debug("Commands: rejected request from %s", remote_ip)
-            return self.json([])
-
-        req_id = request.query.get("id", "")
-        entry, device_id = _lookup_device(
-            self._state, device_id=req_id, remote_ip=remote_ip
-        )
-
+        entry, device_id = _validate_module(self._state, remote_ip)
         if not entry:
-            if req_id:
-                _LOGGER.debug("Commands: unknown device %s from %s", req_id, remote_ip)
+            _LOGGER.debug("Commands: rejected request from %s", remote_ip)
             return self.json([])
 
         queue = entry.get("command_queue", [])
@@ -318,14 +298,12 @@ class StoveStoreView(HomeAssistantView):
     async def post(self, request):
         remote_ip = request.remote
 
-        validated, device_id = _validate_module(self._state, remote_ip)
-        if not validated:
+        entry, device_id = _validate_module(self._state, remote_ip)
+        if not entry:
             _LOGGER.debug("Store: rejected request from %s", remote_ip)
             return self.json({"DeviceId": "", "Assistant": ""})
 
-        entry, device_id = _lookup_device(self._state, remote_ip=remote_ip)
         device_id = device_id or ""
-
         ok_response = {"DeviceId": device_id, "Assistant": ""}
 
         try:
@@ -411,14 +389,12 @@ class StoveCronView(HomeAssistantView):
     async def post(self, request):
         remote_ip = request.remote
 
-        validated, device_id = _validate_module(self._state, remote_ip)
-        if not validated:
+        entry, device_id = _validate_module(self._state, remote_ip)
+        if not entry:
             _LOGGER.debug("Cron: rejected request from %s", remote_ip)
             return self.json({"DeviceId": "", "Assistant": ""})
 
-        entry, device_id = _lookup_device(self._state, remote_ip=remote_ip)
         device_id = device_id or ""
-
         ok_response = {"DeviceId": device_id, "Assistant": ""}
 
         try:

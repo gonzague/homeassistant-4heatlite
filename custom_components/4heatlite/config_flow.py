@@ -19,6 +19,7 @@ from .const import (
     CONF_CACHED_SCHEDULES,
     CONF_DEVICE_ID,
     CONF_DEVICE_KEY,
+    CONF_MODULE_ADDRESS,
     CONF_PROXY_MODE,
     DATA_COORDINATOR,
     DOMAIN,
@@ -145,6 +146,9 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 proxy_mode = user_input.get(
                     CONF_PROXY_MODE, PROXY_MODE_DIRECT
                 )
+                module_address = user_input.get(
+                    CONF_MODULE_ADDRESS, ""
+                ).strip() or host
                 return self.async_create_entry(
                     title=user_input[CONF_NAME],
                     data={
@@ -153,7 +157,10 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_HOST: host,
                         CONF_DEVICE_KEY: device_key,
                     },
-                    options={CONF_PROXY_MODE: proxy_mode},
+                    options={
+                        CONF_PROXY_MODE: proxy_mode,
+                        CONF_MODULE_ADDRESS: module_address,
+                    },
                 )
 
         default_id = self._discovered_device_id or ""
@@ -173,6 +180,9 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         PROXY_MODE_KEEPALIVE: "Cloud Keepalive — module traffic handled locally, only register and store keepalives are mirrored to Azure so the mobile app sees the device online. Requires DNS/DNAT",
                         PROXY_MODE_LOCAL: "Local Only — all module traffic handled locally, nothing sent to Azure. Mobile app will show the device as offline. Requires DNS/DNAT",
                     }),
+                    vol.Optional(
+                        CONF_MODULE_ADDRESS, default=default_host
+                    ): str,
                 }
             ),
             errors=errors,
@@ -327,14 +337,22 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
                             errors["schedules"] = "schedule_send_failed"
 
             if not errors:
+                module_address = user_input.get(
+                    CONF_MODULE_ADDRESS, ""
+                ).strip() or self.config_entry.data.get(CONF_HOST, "")
                 return self.async_create_entry(data={
                     CONF_PROXY_MODE: proxy_mode,
+                    CONF_MODULE_ADDRESS: module_address,
                     CONF_ACTIVE_SCHEDULE: new_active,
                     CONF_CACHED_SCHEDULES: schedules_data,
                 })
 
         current_mode = self.config_entry.options.get(
             CONF_PROXY_MODE, PROXY_MODE_DIRECT
+        )
+        current_module_addr = self.config_entry.options.get(
+            CONF_MODULE_ADDRESS,
+            self.config_entry.data.get(CONF_HOST, ""),
         )
         current_schedules = self.config_entry.options.get(
             CONF_CACHED_SCHEDULES, []
@@ -364,6 +382,10 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
                         PROXY_MODE_KEEPALIVE: "Cloud Keepalive — module traffic handled locally, only register and store keepalives are mirrored to Azure so the mobile app sees the device online. Requires DNS/DNAT",
                         PROXY_MODE_LOCAL: "Local Only — all module traffic handled locally, nothing sent to Azure. Mobile app will show the device as offline. Requires DNS/DNAT",
                     }),
+                    vol.Optional(
+                        CONF_MODULE_ADDRESS,
+                        default=current_module_addr,
+                    ): str,
                     vol.Optional(
                         "schedules",
                         default=current_schedules,
