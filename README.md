@@ -67,10 +67,13 @@ With manual installation you will not receive update notifications.
 
 1. Go to Settings > Devices & Services > Add Integration
 2. Search for "4HEAT Lite Stove"
-3. Enter your 4HEAT account email and password (used once to retrieve the device key from the 4HEAT cloud)
-4. Enter the Device ID (printed on the module label), a name for your stove, and the module's IP address
-5. Select a **Proxy Mode** (Direct, Cloud Keepalive, or Local Only — see [Proxy Modes](docs/PROXY_MODES.md))
+3. Choose **Direct local connection (no cloud account)** for local TCP control, or **Cloud-assisted setup** if you need proxy modes. The latter asks for your 4HEAT account to retrieve a device key.
+4. Select a discovered module or enter its IP address/hostname manually, choose a name and the stove profile. The Device ID is optional for direct local setup; keeping a discovered ID helps track IP changes.
+5. Direct local setup uses **Direct** mode. Cloud-assisted setup also offers Cloud Keepalive and Local Only — see [Proxy Modes](docs/PROXY_MODES.md).
 6. The integration will verify connectivity before completing setup
+
+Direct local setup does not contact the cloud from Home Assistant. It does not
+change the module's own connection to the manufacturer's cloud or the mobile app.
 
 ### Device ID
 
@@ -79,7 +82,7 @@ The Device ID is printed on the module's label. You can also find it in the 4HEA
 ### Options
 
 After setup, go to the integration's options to change:
-- **Proxy Mode**: Direct, Cloud Keepalive, or Local Only (see [Proxy Modes](docs/PROXY_MODES.md))
+- **Proxy Mode**: Direct; entries configured through the cloud also offer Cloud Keepalive and Local Only (see [Proxy Modes](docs/PROXY_MODES.md))
 - **Heating Schedules**: YAML editor with multiple named schedules. Set `active: true` on one to send it to the stove. See the [schedule example](#schedule-management) below.
 
 To enable debug logging, use HA's built-in toggle: go to the integration page, click the three-dot menu, and select "Enable debug logging".

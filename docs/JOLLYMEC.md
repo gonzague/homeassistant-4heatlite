@@ -4,6 +4,12 @@ Select **Jolly Mec (whole-degree temperatures)** in the device setup or integrat
 options. Existing entries default to the Lasian profile; changing a profile does
 not send any commands. Save and reopen options after changing profiles.
 
+For account-free setup, choose **Direct local connection (no cloud account)**,
+select the discovered module or enter its IP address, and choose the Jolly Mec
+profile. The device ID is optional for manual setup. No cloud login or device
+key is requested; this entry stays in Direct mode. This does not change the
+module's own cloud connection or the mobile app.
+
 This profile implements the differences reported in [issue #2](https://github.com/pafernanr/homeassistant-4heatlite/issues/2)
 and reproduced on a second Jolly Mec installation with a 4HEAT Lite module.
 The exact model reference of the second installation is still unverified; do not

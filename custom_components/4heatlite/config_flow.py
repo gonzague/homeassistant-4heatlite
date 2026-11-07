@@ -49,9 +49,20 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     _token: str | None = None
     _discovered_device_id: str | None = None
     _discovered_host: str | None = None
+    _local_setup: bool = False
 
     async def async_step_user(self, user_input=None):
+        """Choose direct local setup or the existing cloud-assisted setup."""
+        return self.async_show_menu(step_id="user", menu_options=["local", "cloud"])
+
+    async def async_step_local(self, user_input=None):
+        """Discover a module without authenticating with the cloud."""
+        self._local_setup = True
+        return await self.async_step_discovery()
+
+    async def async_step_cloud(self, user_input=None):
         """Step 1: authenticate with 4HEAT cloud using email/password."""
+        self._local_setup = False
         errors = {}
 
         if user_input is not None:
@@ -66,7 +77,7 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "auth_failed"
 
         return self.async_show_form(
-            step_id="user",
+            step_id="cloud",
             data_schema=vol.Schema(
                 {
                     vol.Required("email"): str,
@@ -118,11 +129,11 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            device_id = user_input[CONF_DEVICE_ID].strip()
+            device_id = user_input.get(CONF_DEVICE_ID, "").strip()
             host = user_input[CONF_HOST].strip()
 
             for entry in self._async_current_entries():
-                if entry.data.get(CONF_DEVICE_ID) == device_id:
+                if device_id and entry.data.get(CONF_DEVICE_ID) == device_id:
                     errors[CONF_DEVICE_ID] = "already_configured"
                     break
                 if entry.data.get(CONF_HOST) == host:
@@ -143,7 +154,7 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     host = resolved
 
             device_key = ""
-            if not errors:
+            if not errors and not self._local_setup:
                 device_key = await self._async_fetch_device_key(device_id)
                 if not device_key:
                     errors["base"] = "device_key_failed"
@@ -152,6 +163,8 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 proxy_mode = user_input.get(
                     CONF_PROXY_MODE, PROXY_MODE_DIRECT
                 )
+                if self._local_setup:
+                    proxy_mode = PROXY_MODE_DIRECT
                 module_address = user_input.get(
                     CONF_MODULE_ADDRESS, ""
                 ).strip() or host
@@ -177,20 +190,24 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="device",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_DEVICE_ID, default=default_id): str,
+                    (vol.Optional if self._local_setup else vol.Required)(
+                        CONF_DEVICE_ID, default=default_id
+                    ): str,
                     vol.Required(CONF_NAME, default="Pellet Stove"): str,
                     vol.Required(CONF_HOST, default=default_host): str,
                     vol.Optional(CONF_STOVE_PROFILE, default=PROFILE_LASIAN): vol.In(STOVE_PROFILES),
-                    vol.Optional(
-                        CONF_PROXY_MODE, default=PROXY_MODE_DIRECT
-                    ): vol.In({
-                        PROXY_MODE_DIRECT: "Direct — no interception, all module traffic goes to Azure. HA reads sensors via TCP",
-                        PROXY_MODE_KEEPALIVE: "Cloud Keepalive — module traffic handled locally, only register and store keepalives are mirrored to Azure so the mobile app sees the device online. Requires DNS/DNAT",
-                        PROXY_MODE_LOCAL: "Local Only — all module traffic handled locally, nothing sent to Azure. Mobile app will show the device as offline. Requires DNS/DNAT",
+                    **({} if self._local_setup else {
+                        vol.Optional(
+                            CONF_PROXY_MODE, default=PROXY_MODE_DIRECT
+                        ): vol.In({
+                            PROXY_MODE_DIRECT: "Direct — no interception, all module traffic goes to Azure. HA reads sensors via TCP",
+                            PROXY_MODE_KEEPALIVE: "Cloud Keepalive — module traffic handled locally, only register and store keepalives are mirrored to Azure so the mobile app sees the device online. Requires DNS/DNAT",
+                            PROXY_MODE_LOCAL: "Local Only — all module traffic handled locally, nothing sent to Azure. Mobile app will show the device as offline. Requires DNS/DNAT",
+                        }),
+                        vol.Optional(
+                            CONF_MODULE_ADDRESS, default=default_host
+                        ): str,
                     }),
-                    vol.Optional(
-                        CONF_MODULE_ADDRESS, default=default_host
-                    ): str,
                 }
             ),
             errors=errors,
@@ -281,6 +298,11 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
 
         if user_input is not None:
             proxy_mode = user_input.get(CONF_PROXY_MODE, PROXY_MODE_DIRECT)
+            if (
+                not self.config_entry.data.get(CONF_DEVICE_KEY)
+                and proxy_mode != PROXY_MODE_DIRECT
+            ):
+                return self.async_abort(reason="cloud_setup_required")
             profile = user_input.get(CONF_STOVE_PROFILE, current_profile)
             # A profile change must never apply an old profile's schedule.
             # Jolly Mec CCG schedules are currently read-only.
@@ -401,8 +423,10 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
                         default=current_mode,
                     ): vol.In({
                         PROXY_MODE_DIRECT: "Direct — no interception, all module traffic goes to Azure. HA reads sensors via TCP",
-                        PROXY_MODE_KEEPALIVE: "Cloud Keepalive — module traffic handled locally, only register and store keepalives are mirrored to Azure so the mobile app sees the device online. Requires DNS/DNAT",
-                        PROXY_MODE_LOCAL: "Local Only — all module traffic handled locally, nothing sent to Azure. Mobile app will show the device as offline. Requires DNS/DNAT",
+                        **({
+                            PROXY_MODE_KEEPALIVE: "Cloud Keepalive — module traffic handled locally, only register and store keepalives are mirrored to Azure so the mobile app sees the device online. Requires DNS/DNAT",
+                            PROXY_MODE_LOCAL: "Local Only — all module traffic handled locally, nothing sent to Azure. Mobile app will show the device as offline. Requires DNS/DNAT",
+                        } if self.config_entry.data.get(CONF_DEVICE_KEY) else {}),
                     }),
                     vol.Optional(
                         CONF_MODULE_ADDRESS,

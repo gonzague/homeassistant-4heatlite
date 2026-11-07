@@ -1,14 +1,6 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "4HEAT Cloud Login",
-        "description": "Authenticate with your 4HEAT account to retrieve the device key.",
-        "data": {
-          "email": "Email",
-          "password": "Password"
-        }
-      },
       "discovery": {
         "title": "Discover Stove Module",
         "description": "Select a module found on your local network, or choose manual entry.",
@@ -18,7 +10,7 @@
       },
       "device": {
         "title": "4HEAT Lite Stove",
-        "description": "Confirm the device details. The IP address was auto-detected.",
+        "description": "Enter the module IP address or hostname and select the stove profile. For direct local setup, the device ID is optional; a discovered ID helps track IP changes.",
         "data": {
           "device_id": "Device ID (printed on module label)",
           "name": "Stove name",
@@ -30,6 +22,22 @@
         "data_description": {
           "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT.",
           "stove_profile": "Select Jolly Mec for whole-degree temperatures and its combustion-power mapping. Jolly Mec schedules can be read but not edited. When changing profiles, save and reopen options before editing schedules."
+        }
+      },
+      "cloud": {
+        "title": "4HEAT Cloud Login",
+        "description": "Authenticate with your 4HEAT account to retrieve the device key.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "user": {
+        "title": "Connect your 4HEAT Lite stove",
+        "description": "Choose direct local access without an account, or cloud-assisted setup for proxy modes.",
+        "menu_options": {
+          "local": "Direct local connection (no cloud account)",
+          "cloud": "Cloud-assisted setup"
         }
       }
     },
@@ -64,6 +72,9 @@
       "overlapping_slots": "Time slots overlap on the same day.",
       "schedule_send_failed": "Failed to send schedule to module.",
       "multiple_active": "Only one schedule can be active at a time."
+    },
+    "abort": {
+      "cloud_setup_required": "This entry has no cloud device key. Use direct mode, or configure the device through cloud-assisted setup to use proxy modes."
     }
   }
 }
