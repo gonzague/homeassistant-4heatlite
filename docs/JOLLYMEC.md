@@ -94,6 +94,10 @@ The editor reads the current program directly from the module. Choose a mode:
   Saturday–Sunday slots. Both groups appear in the final review.
 - **Disabled**: review disabling the timer without clearing its stored slots.
 
+The review displays enabled slots only and groups consecutive days with identical
+hours. An unchanged program appears once with “No changes”. Edits to disabled
+slots are still explicitly listed before saving.
+
 Every slot has an enabled checkbox and start/stop time. Nothing is sent while
 moving between editor screens. Review the complete before/after program before
 saving. When a group previously had different values, its first day supplies

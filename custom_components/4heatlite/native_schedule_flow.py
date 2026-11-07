@@ -137,8 +137,7 @@ class NativeScheduleFlowMixin:
         return self.async_show_form(
             step_id="native_review", data_schema=vol.Schema({}),
             description_placeholders={
-                "before": self._native_summary(self._native_baseline),
-                "after": self._native_summary(self._native_draft),
+                "review": self._native_review_summary(),
             },
         )
 
@@ -150,12 +149,66 @@ class NativeScheduleFlowMixin:
             return ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
         return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-    def _native_summary(self, schedule):
-        modes = (["Désactivé", "Journalier", "Hebdomadaire", "Semaine / week-end"]
+    def _native_mode_label(self, mode):
+        modes = (["Désactivé", "Journalier", "Hebdomadaire", "Fin de semaine"]
                  if self._native_french() else ["Disabled", "Daily", "Weekly", "Weekday / weekend"])
-        mode = modes[schedule["mode_raw"]]
-        lines = [f"**{mode}**"]
-        for label, day in zip(self._native_day_labels(), schedule["days"], strict=True):
-            slots = [f"{'☑' if s['flag_raw'] else '☐'} {s['start']}–{s['end']}" for s in day["slots"]]
-            lines.append(f"- **{label}** : " + " · ".join(slots))
-        return lines[0] + "\n\n" + "\n".join(lines[1:])
+        return modes[mode]
+
+    def _native_grouped_lines(self, values):
+        """Combine consecutive days with identical display text, never data."""
+        labels = self._native_day_labels()
+        lines = []
+        first = 0
+        while first < len(values):
+            last = first
+            while last + 1 < len(values) and values[last + 1] == values[first]:
+                last += 1
+            if values[first]:
+                label = labels[first] if first == last else f"{labels[first]}–{labels[last]}"
+                if first == 0 and last == 6:
+                    label = "Tous les jours" if self._native_french() else "Every day"
+                lines.append(f"- **{label}** : {values[first]}")
+            first = last + 1
+        return lines
+
+    def _native_summary(self, schedule):
+        mode = self._native_mode_label(schedule["mode_raw"])
+        if schedule["mode_raw"] == 0:
+            note = ("Aucun déclenchement automatique. Les horaires restent mémorisés."
+                    if self._native_french() else "No automatic starts. Stored times are retained.")
+            return f"**{mode}**\n\n{note}"
+        empty = "Aucun créneau actif" if self._native_french() else "No enabled slots"
+        values = []
+        for day in schedule["days"]:
+            slots = [f"{s['start']}–{s['end']}" for s in day["slots"] if s["flag_raw"]]
+            values.append(" · ".join(slots) or empty)
+        return f"**{mode}**\n\n" + "\n".join(self._native_grouped_lines(values))
+
+    def _native_review_summary(self):
+        """Show one compact program and explicit edits, including inactive slots."""
+        before, after = self._native_baseline, self._native_draft
+        french = self._native_french()
+        changes = []
+        if before["mode_raw"] != after["mode_raw"]:
+            changes.append(f"- Mode : {self._native_mode_label(before['mode_raw'])} → {self._native_mode_label(after['mode_raw'])}")
+
+        def describe(slot):
+            status = (("activé" if slot["flag_raw"] else "désactivé") if french
+                      else ("enabled" if slot["flag_raw"] else "disabled"))
+            return f"{slot['start']}–{slot['end']} ({status})"
+
+        day_changes = []
+        for old_day, new_day in zip(before["days"], after["days"], strict=True):
+            edits = []
+            for i, (old, new) in enumerate(zip(old_day["slots"], new_day["slots"], strict=True), 1):
+                if old != new:
+                    label = "créneau" if french else "slot"
+                    edits.append(f"{label} {i} : {describe(old)} → {describe(new)}")
+            day_changes.append(" ; ".join(edits))
+        changes.extend(self._native_grouped_lines(day_changes))
+        if not changes:
+            heading = "Aucune modification" if french else "No changes"
+            return f"**{heading}**\n\n" + self._native_summary(after)
+        heading = "Programme à enregistrer" if french else "Program to save"
+        change_heading = "Modifications" if french else "Changes"
+        return f"**{heading}**\n\n{self._native_summary(after)}\n\n**{change_heading}**\n\n" + "\n".join(changes)

@@ -95,7 +95,7 @@
       },
       "native_review": {
         "title": "Save this program to the stove?",
-        "description": "**Current program**\n\n{before}\n\n**Program to save**\n\n{after}\n\nSubmit to apply immediately. Cancel to leave the stove unchanged. A change made on the remote since opening this editor will cancel this save."
+        "description": "{review}\n\nDisabled slots are hidden from the summary, but any edits to them are listed.\n\nSubmit to apply; close to cancel. An unchanged program is not written to the stove."
       },
       "native_day": {
         "title": "Choose a day to edit",

@@ -95,7 +95,7 @@
       },
       "native_review": {
         "title": "Enregistrer ce programme dans le poêle ?",
-        "description": "**Programme actuel**\n\n{before}\n\n**Programme à enregistrer**\n\n{after}\n\nValider pour appliquer immédiatement. Annuler pour conserver le programme actuel. Une modification faite entre-temps sur la télécommande annule cet enregistrement."
+        "description": "{review}\n\nLes créneaux désactivés sont masqués dans le résumé, mais leurs éventuelles modifications sont indiquées.\n\nValider pour appliquer ; fermer pour annuler. Si le programme est inchangé, aucune écriture n’est envoyée au poêle."
       },
       "native_day": {
         "title": "Quel jour veux-tu modifier ?",
