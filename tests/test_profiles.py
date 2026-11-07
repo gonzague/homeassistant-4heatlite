@@ -304,3 +304,27 @@ async def test_profile_is_saved_during_initial_setup(monkeypatch):
     })
     assert observed == [const.PROFILE_JOLLYMEC]
     assert result["options"][const.CONF_STOVE_PROFILE] == const.PROFILE_JOLLYMEC
+
+
+@pytest.mark.parametrize('raw, expected', [(0, 'None'), (32, 'Lack of depression'), (2, 'Unknown (raw 2)')])
+def test_jollymec_alarm_codes_are_profile_specific(raw, expected):
+    module = importlib.import_module('custom_components.4heatlite.sensor')
+    coordinator = SimpleNamespace(api=Api('test.invalid', const.PROFILE_JOLLYMEC), data={'error': raw})
+    entity = module.StoveErrorSensor(coordinator, 'Test')
+    assert entity.native_value == expected
+    assert entity.extra_state_attributes == {'error_code': raw, 'error_code_raw': raw}
+
+
+def test_legacy_alarm_code_keeps_its_existing_meaning():
+    module = importlib.import_module('custom_components.4heatlite.sensor')
+    coordinator = SimpleNamespace(api=Api('test.invalid'), data={'error': 2})
+    entity = module.StoveErrorSensor(coordinator, 'Test')
+    assert entity.native_value == 'Safety PressureSwitch HV2'
+    assert entity.extra_state_attributes == {'error_code': 2}
+
+
+def test_observed_shutdown_block_is_not_off():
+    data = Api._decode_0310('10200100000902061425001122000000018400', const.PROFILE_JOLLYMEC)
+    assert data['state'] == 9
+    assert data['error'] == 32
+    assert data['on_off'] == 1

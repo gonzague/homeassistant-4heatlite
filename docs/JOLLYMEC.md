@@ -26,6 +26,15 @@ infer compatibility with every stove sold under the Synthesis name.
 | Combustion power | `0e016c` bytes 3–4 | Raw 1 = Silent; raw 2–6 = levels 1–5 |
 | Ducted fan 1 | `0e0266` bytes 3–4 | Same level as the controller; zero means off |
 
+Alarm values in `0310` are kept raw: they are not assumed to be the alarm
+numbers in the remote-control manual. Raw `32` (`0x20`) was observed with state
+9 (Block) while the physical remote displayed **ManqueDépr Blocage**. The Jolly
+Mec error sensor labels that value **Lack of depression**, exposes
+`error_code_raw`, and leaves other unverified nonzero values unknown instead of
+reusing Lasian alarm descriptions. This observation is not a general decoding
+rule. The [manufacturer's SM208 manual, page 22](https://jm-poeles.com/Allegati/RadioCommande/2_sm208_fr.pdf)
+describes the lack-of-depression alarm as a safety-pressure-switch trip.
+
 The combustion raw value is also kept as `power_raw` in coordinator data. Raw 7
 has no verified user-facing meaning, so it is not offered as a preset. Negative
 or high-bit room-temperature words are not published as unsigned temperatures:
@@ -46,7 +55,10 @@ packets and more than one receive buffer.
 
 - ON/OFF uses the existing commands. One ON command was tested on the second
   installation: the module transitioned OFF → Check Up → Ignition, and the
-  physical remote confirmed ignition. OFF was not tested in that session.
+  physical remote confirmed ignition. One OFF command was subsequently
+  acknowledged and state 7 (final cleaning) was observed. During cooldown the
+  stove entered state 9 with raw error 32, confirmed on the remote as lack of
+  depression. A normal completed OFF transition has not yet been validated.
 - Target temperatures use a step of 1 °C and the whole-degree wire format from
   issue #2. Values outside 10–40 or with fractional degrees are rejected.
 - Presets are Silent and Power 1–5. They use the offset wire value from issue #2.

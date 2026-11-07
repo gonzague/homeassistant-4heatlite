@@ -72,6 +72,13 @@ ERROR_NAMES = {
     44: "Door error",
 }
 
+# Raw 0310 values confirmed against this profile's physical remote. Do not
+# assume the Lasian numeric codes are the alarm numbers shown by Jolly Mec.
+JOLLYMEC_ERROR_NAMES = {
+    0: "None",
+    32: "Lack of depression",
+}
+
 # Proxy configuration
 CONF_DEVICE_ID = "device_id"
 CONF_DEVICE_KEY = "device_key"

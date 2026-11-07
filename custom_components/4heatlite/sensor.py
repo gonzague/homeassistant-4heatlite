@@ -14,7 +14,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DATA_COORDINATOR, DOMAIN, ERROR_NAMES, STATE_NAMES, PROFILE_JOLLYMEC
+from .const import DATA_COORDINATOR, DOMAIN, ERROR_NAMES, JOLLYMEC_ERROR_NAMES, STATE_NAMES, PROFILE_JOLLYMEC
 from .coordinator import FourHeatLiteCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,13 +99,19 @@ class StoveErrorSensor(FourHeatLiteEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
         error = self.coordinator.data["error"]
+        if self.coordinator.api.profile == PROFILE_JOLLYMEC:
+            return JOLLYMEC_ERROR_NAMES.get(error, f"Unknown (raw {error})")
         return ERROR_NAMES.get(error, f"Unknown ({error})")
 
     @property
     def extra_state_attributes(self):
         if self.coordinator.data is None:
             return None
-        return {"error_code": self.coordinator.data["error"]}
+        error = self.coordinator.data["error"]
+        attributes = {"error_code": error}
+        if self.coordinator.api.profile == PROFILE_JOLLYMEC:
+            attributes["error_code_raw"] = error
+        return attributes
 
 
 class ExhaustTemperatureSensor(FourHeatLiteEntity, SensorEntity):
