@@ -3,6 +3,19 @@
 DOMAIN = "4heatlite"
 DATA_COORDINATOR = "coordinator"
 
+CONF_STOVE_PROFILE = "stove_profile"
+PROFILE_LASIAN = "lasian"
+PROFILE_JOLLYMEC = "jollymec"
+STOVE_PROFILES = {
+    PROFILE_LASIAN: "Lasian Eriste (default)",
+    PROFILE_JOLLYMEC: "Jolly Mec (whole-degree temperatures)",
+}
+
+JOLLYMEC_READS = {
+    "exhaust_temp": "12ffff",
+    "ducted_fan_1": "0e0266",
+}
+
 TCP_PORT = 80
 SOCKET_TIMEOUT = 5
 SOCKET_BUFFER = 1024

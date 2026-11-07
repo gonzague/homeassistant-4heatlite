@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import FourHeatLiteApi
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, PROXY_POLL_INTERVAL
+from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, PROXY_POLL_INTERVAL, PROFILE_LASIAN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,8 +15,8 @@ _LOGGER = logging.getLogger(__name__)
 class FourHeatLiteCoordinator(DataUpdateCoordinator):
     """Fetch sensor data from the 4HEAT Lite module."""
 
-    def __init__(self, hass: HomeAssistant, host: str) -> None:
-        self.api = FourHeatLiteApi(host)
+    def __init__(self, hass: HomeAssistant, host: str, profile: str = PROFILE_LASIAN) -> None:
+        self.api = FourHeatLiteApi(host, profile)
         super().__init__(
             hass,
             _LOGGER,
@@ -45,4 +45,6 @@ class FourHeatLiteCoordinator(DataUpdateCoordinator):
         config = await self.hass.async_add_executor_job(self.api.query_config)
         if config:
             data.update(config)
-        return data
+        # A cache response can omit an individual register. Retain its last
+        # valid sample; explicit None still clears an invalid/sentinel value.
+        return {**(self.data or {}), **data}

@@ -26,6 +26,8 @@ from .const import (
     PROXY_MODE_DIRECT,
     PROXY_MODE_KEEPALIVE,
     STORE_REGISTERS,
+    PROFILE_JOLLYMEC,
+    PROFILE_LASIAN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -92,6 +94,10 @@ def _device_should_mirror(entry) -> bool:
 def enqueue_command(state, device_id: str, command: list) -> bool:
     """Add a command to the device's polling queue."""
     entry, did = _lookup_device(state, device_id=device_id)
+    if entry and command and command[0] == "H24":
+        coordinator = entry.get("coordinator")
+        if coordinator and not coordinator.api.supports_schedule_write:
+            return False
     if not entry:
         _LOGGER.warning("Cannot enqueue command: device %s not found", device_id)
         return False
@@ -323,7 +329,7 @@ class StoveStoreView(HomeAssistantView):
         if values and entry:
             coordinator = entry.get("coordinator")
             if coordinator:
-                data = self._parse_values(values)
+                data = self._parse_values(values, coordinator.api.profile)
                 if data:
                     _LOGGER.info(
                         "Store: parsed from %s (device %s): %s",
@@ -344,13 +350,20 @@ class StoveStoreView(HomeAssistantView):
         return self.json(ok_response)
 
     @staticmethod
-    def _parse_values(values):
+    def _parse_values(values, profile=PROFILE_LASIAN):
         result = {}
         for hexdata in values:
             if not isinstance(hexdata, str) or len(hexdata) < 4:
                 continue
+            if len(hexdata) % 2 or any(char not in "0123456789abcdefABCDEF" for char in hexdata):
+                continue
+            try:
+                bytes.fromhex(hexdata)
+            except ValueError:
+                continue
+            hexdata = hexdata.lower()
             if hexdata.startswith("10") and len(hexdata) >= 38:
-                result.update(FourHeatLiteApi._decode_0310(hexdata))
+                result.update(FourHeatLiteApi._decode_0310(hexdata, profile))
                 continue
             matched = False
             for prefix, meta in STORE_REGISTERS.items():
@@ -359,6 +372,25 @@ class StoveStoreView(HomeAssistantView):
                 matched = True
                 vals = [int(hexdata[i:i+2], 16) for i in range(0, len(hexdata), 2)]
                 group = meta["group"]
+                if profile == PROFILE_JOLLYMEC:
+                    # Only publish fields whose Jolly Mec register map is known.
+                    if len(vals) < 5:
+                        break
+                    raw = (vals[3] << 8) | vals[4]
+                    if prefix == "12fff7":
+                        result["room_temp"] = raw if raw < 0x8000 else None
+                    elif prefix == "12ffff":
+                        result["exhaust_temp"] = raw
+                    elif prefix == "12005a":
+                        result["target_temp"] = raw
+                    elif prefix == "0e016c":
+                        result["power_raw"] = raw
+                        result["power"] = raw - 1 if 1 <= raw <= 6 else None
+                    elif prefix == "0e0266":
+                        result["ducted_fan_1"] = raw
+                    elif prefix == "0c81":
+                        result["module_info"] = hexdata
+                    break
                 if group == "12" and len(vals) >= 5:
                     raw = (vals[3] << 8) | vals[4]
                     result[meta["key"]] = raw * meta.get("scale", 1)
@@ -407,8 +439,13 @@ class StoveCronView(HomeAssistantView):
                        json.dumps(body, separators=(",", ":")) if isinstance(body, dict) else str(body))
 
         command = body.get("Command") if isinstance(body, dict) else body
-        if isinstance(command, list) and command and str(command[0]) == "H24":
-            parsed = FourHeatLiteApi.parse_h24_response(command)
+        if isinstance(command, list) and command and entry:
+            coordinator = entry.get("coordinator")
+            jollymec = coordinator and coordinator.api.profile == PROFILE_JOLLYMEC
+            parsed = (
+                FourHeatLiteApi.parse_ccg_response(command) if jollymec
+                else FourHeatLiteApi.parse_h24_response(command)
+            )
             if parsed and entry:
                 entry["last_schedule"] = parsed
                 _LOGGER.info("Cron: schedule stored for device %s", device_id)

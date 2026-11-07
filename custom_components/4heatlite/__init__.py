@@ -28,6 +28,8 @@ from .const import (
     PROXY_MODE_LOCAL,
     SERVICE_GET_SCHEDULE,
     SERVICE_SET_SCHEDULE,
+    CONF_STOVE_PROFILE,
+    PROFILE_LASIAN,
 )
 from .coordinator import FourHeatLiteCoordinator
 from .discovery import discover_module_by_id
@@ -85,7 +87,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     else:
         host = await _async_resolve_host(hass, stored_host)
 
-    coordinator = FourHeatLiteCoordinator(hass, host)
+    profile = entry.options.get(CONF_STOVE_PROFILE, PROFILE_LASIAN)
+    coordinator = FourHeatLiteCoordinator(hass, host, profile)
 
     hass.data.setdefault(DOMAIN, {})
 
@@ -203,6 +206,10 @@ def _register_services(hass: HomeAssistant) -> None:
         entry_data, device_entry = _resolve_entry(
             hass, call.data.get("config_entry_id")
         )
+
+        coordinator = entry_data.get(DATA_COORDINATOR)
+        if coordinator and not coordinator.api.supports_schedule_write:
+            raise HomeAssistantError("Jolly Mec CCG schedules are read-only")
 
         schedule = call.data["schedule"]
         error = FourHeatLiteApi.validate_schedule(schedule)

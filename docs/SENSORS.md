@@ -1,5 +1,9 @@
 # Sensors & Entities
 
+The layouts and scales below describe the default Lasian profile. For Jolly Mec
+whole-degree temperatures, combustion power offsets, dedicated exhaust readings
+and direct ducted-fan polling, see [Jolly Mec profile](JOLLYMEC.md).
+
 ## Sensor Entities
 
 | Entity | Description | Source |

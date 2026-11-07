@@ -3,6 +3,7 @@
 import json
 import logging
 import socket
+import time
 
 from .const import (
     BAND_NAMES,
@@ -21,6 +22,10 @@ from .const import (
     TEMP_SCALE,
     TEMP_WRITE_SUFFIX,
     WRITE_FUNCTION,
+    JOLLYMEC_READS,
+    PROFILE_JOLLYMEC,
+    PROFILE_LASIAN,
+    STOVE_PROFILES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,8 +34,16 @@ _LOGGER = logging.getLogger(__name__)
 class FourHeatLiteApi:
     """Communicate with a 4HEAT Lite module over TCP:80."""
 
-    def __init__(self, host: str) -> None:
+    def __init__(self, host: str, profile: str = PROFILE_LASIAN) -> None:
+        if profile not in STOVE_PROFILES:
+            raise ValueError("Unknown stove profile")
         self._host = host
+        self.profile = profile
+
+    @property
+    def supports_schedule_write(self) -> bool:
+        """Jolly Mec's CCG program is not an H24 temperature schedule."""
+        return self.profile != PROFILE_JOLLYMEC
 
     def _send(self, command: str) -> list:
         """Send a JSON command and return the parsed response."""
@@ -38,16 +51,35 @@ class FourHeatLiteApi:
         s.settimeout(SOCKET_TIMEOUT)
         try:
             s.connect((self._host, TCP_PORT))
-            s.send(command.encode())
-            raw = s.recv(SOCKET_BUFFER).decode()
+            s.sendall(command.encode())
+            raw = bytearray()
+            deadline = time.monotonic() + SOCKET_TIMEOUT
+            while len(raw) < 65536:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Incomplete module response")
+                s.settimeout(remaining)
+                chunk = s.recv(SOCKET_BUFFER)
+                if not chunk:
+                    raise ValueError("Connection closed before complete JSON")
+                raw.extend(chunk)
+                try:
+                    return json.loads(raw)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+            raise ValueError("Module response exceeds size limit")
         finally:
             s.close()
-        return json.loads(raw)
 
     def send_command(self, cmd: list) -> list | None:
         """Send a command via TCP and return the parsed response."""
+        if cmd and cmd[0] == "H24" and not self.supports_schedule_write:
+            raise ValueError("H24 schedule writes are not supported by this profile")
         try:
-            return self._send(json.dumps(cmd, separators=(",", ":")))
+            response = self._send(json.dumps(cmd, separators=(",", ":")))
+            if not isinstance(response, list) or not response or response[0] == "ERR":
+                return None
+            return response
         except (OSError, ValueError, json.JSONDecodeError):
             _LOGGER.warning("TCP command failed: %s", cmd)
             return None
@@ -66,17 +98,36 @@ class FourHeatLiteApi:
             _LOGGER.warning("Module returned error: %s", response)
             return None
 
-        hexdata = response[2]
-        if not hexdata or len(hexdata) < min_hex_len:
+        if response[0] not in ("2WC", "2WR"):
             return None
-        return hexdata
+        # Some firmware returns the entire cache, irrespective of response[1].
+        prefix = json.loads(command)[2][2:].lower()
+        for hexdata in response[2:]:
+            if not isinstance(hexdata, str) or not hexdata.lower().startswith(prefix):
+                continue
+            if len(hexdata) < min_hex_len or len(hexdata) % 2:
+                continue
+            if any(char not in "0123456789abcdefABCDEF" for char in hexdata):
+                continue
+            try:
+                bytes.fromhex(hexdata)
+            except ValueError:
+                continue
+            return hexdata
+        return None
 
     def query_sensors(self) -> dict | None:
         """Query main sensor block (0310) and decode into a dict."""
         hexdata = self._query(QUERY_SENSORS, min_hex_len=38)
         if hexdata is None:
             return None
-        return self._decode_0310(hexdata)
+        result = self._decode_0310(hexdata, self.profile)
+        if self.profile == PROFILE_JOLLYMEC:
+            for key, register in JOLLYMEC_READS.items():
+                value = self._query(f'["2WC","1","03{register}"]', min_hex_len=10)
+                if value:
+                    result[key] = int(value[6:10], 16)
+        return result
 
     def query_config(self) -> dict | None:
         """Query target temp (12/005a) and power (0e/016c)."""
@@ -84,12 +135,18 @@ class FourHeatLiteApi:
         hexdata = self._query(QUERY_CONFIG["target_temp"], min_hex_len=34)
         if hexdata:
             vals = [int(hexdata[i : i + 2], 16) for i in range(0, len(hexdata), 2)]
-            result["target_temp"] = ((vals[3] << 8) | vals[4]) / 10.0
+            scale = 1 if self.profile == PROFILE_JOLLYMEC else 10
+            result["target_temp"] = ((vals[3] << 8) | vals[4]) / scale
 
         hexdata = self._query(QUERY_CONFIG["power"], min_hex_len=34)
         if hexdata:
             vals = [int(hexdata[i : i + 2], 16) for i in range(0, len(hexdata), 2)]
-            result["power"] = (vals[5] << 8) | vals[6]
+            if self.profile == PROFILE_JOLLYMEC:
+                raw = (vals[3] << 8) | vals[4]
+                result["power_raw"] = raw
+                result["power"] = raw - 1 if 1 <= raw <= 6 else None
+            else:
+                result["power"] = (vals[5] << 8) | vals[6]
 
         return result if result else None
 
@@ -99,7 +156,7 @@ class FourHeatLiteApi:
         return result is not None
 
     @staticmethod
-    def _decode_0310(hexdata: str) -> dict:
+    def _decode_0310(hexdata: str, profile: str = PROFILE_LASIAN) -> dict:
         """Decode the 0310 sensor response (19 bytes / 38 hex chars).
 
         Confirmed register map (Lasian Eriste air stove):
@@ -113,7 +170,7 @@ class FourHeatLiteApi:
         vals = [int(hexdata[i : i + 2], 16) for i in range(0, len(hexdata), 2)]
         room_raw = (vals[10] << 8) | vals[11]
 
-        return {
+        result = {
             "state": vals[5],
             "error": vals[1],
             "on_off": vals[2],
@@ -121,10 +178,21 @@ class FourHeatLiteApi:
             "room_temp": room_raw / 10.0,
             "raw": vals,
         }
+        if profile == PROFILE_JOLLYMEC:
+            # No signed/sentinel encoding has been established. In particular,
+            # 0xfff6 was observed at startup; never publish it as 65526 °C.
+            result["room_temp"] = room_raw if room_raw < 0x8000 else None
+            # Byte 4 is not the flue temperature on this profile.
+            del result["exhaust_temp"]
+        return result
 
     @staticmethod
-    def build_temp_command(temp_c: float) -> list:
+    def build_temp_command(temp_c: float, profile: str = PROFILE_LASIAN) -> list:
         """Build write command for target temperature register (12/005a)."""
+        if profile == PROFILE_JOLLYMEC:
+            if not 10 <= temp_c <= 40 or not float(temp_c).is_integer():
+                raise ValueError("Jolly Mec target must be a whole degree from 10 to 40")
+            return ["2WC", "1", f"0512005a{int(temp_c):04x}000a00280000"]
         raw = int(round(temp_c * 10))
         raw = max(TEMP_MIN_RAW, min(TEMP_MAX_RAW, raw))
         temp_hex = f"{raw:04x}"
@@ -134,8 +202,12 @@ class FourHeatLiteApi:
         return ["2WC", "1", data]
 
     @staticmethod
-    def build_power_command(level: int) -> list:
+    def build_power_command(level: int, profile: str = PROFILE_LASIAN) -> list:
         """Build write command for combustion power level (register 0e/016c, range 1-7)."""
+        if profile == PROFILE_JOLLYMEC:
+            if not isinstance(level, int) or not 0 <= level <= 5:
+                raise ValueError("Jolly Mec power must be Silent (0) or 1–5")
+            return ["2WC", "1", f"050e016c{level + 1:04x}000100070000"]
         level = max(1, min(7, level))
         level_hex = f"{level:04x}"
         data = f"050e016c{level_hex}0001000700"
@@ -175,7 +247,43 @@ class FourHeatLiteApi:
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             _LOGGER.debug("Schedule query failed: %s", exc)
             return None
+        if self.profile == PROFILE_JOLLYMEC:
+            return self.parse_ccg_response(response)
         return self.parse_h24_response(response)
+
+    @staticmethod
+    def parse_ccg_response(response: list) -> dict | None:
+        """Read seven groups of three start/end/flag slots without guessing flags.
+
+        CCG is deliberately distinct from editable H24 schedules. Its mode and
+        per-slot flags are preserved as raw codes until their meaning is verified.
+        """
+        if not isinstance(response, list) or len(response) != 73 or response[0] != "CCG":
+            return None
+        try:
+            if int(response[1]) != len(response) - 2:
+                return None
+            mode = int(response[2])
+            days = []
+            for index, day in enumerate(DAY_NAMES):
+                offset = 3 + index * 10
+                if int(response[offset]) != index + 1:
+                    return None
+                slots = []
+                for slot in range(3):
+                    pos = offset + 1 + slot * 3
+                    start, end = response[pos:pos + 2]
+                    for value in (start, end):
+                        if not isinstance(value, str) or len(value) != 5 or value[2] != ":":
+                            return None
+                        h, m = value.split(":")
+                        if not h.isdigit() or not m.isdigit() or not (0 <= int(h) < 24 and 0 <= int(m) < 60):
+                            return None
+                    slots.append({"start": start, "end": end, "flag_raw": int(response[pos + 2])})
+                days.append({"day": day, "slots": slots})
+            return {"format": "CCG", "mode_raw": mode, "days": days, "read_only": True}
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def parse_h24_response(response: list) -> dict | None:

@@ -24,10 +24,12 @@
           "name": "Stove name",
           "host": "Host (IP address of 4HEAT module)",
           "proxy_mode": "Proxy Mode",
-          "module_address": "Expected module IP"
+          "module_address": "Expected module IP",
+          "stove_profile": "Stove profile"
         },
         "data_description": {
-          "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT."
+          "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT.",
+          "stove_profile": "Select Jolly Mec for whole-degree temperatures and its combustion-power mapping. Jolly Mec schedules can be read but not edited. When changing profiles, save and reopen options before editing schedules."
         }
       }
     },
@@ -45,10 +47,12 @@
         "data": {
           "proxy_mode": "Proxy Mode",
           "module_address": "Expected module IP",
-          "schedules": "Heating Schedules"
+          "schedules": "Heating Schedules",
+          "stove_profile": "Stove profile"
         },
         "data_description": {
-          "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT."
+          "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT.",
+          "stove_profile": "Select Jolly Mec for whole-degree temperatures and its combustion-power mapping. Jolly Mec schedules can be read but not edited. When changing profiles, save and reopen options before editing schedules."
         }
       }
     },

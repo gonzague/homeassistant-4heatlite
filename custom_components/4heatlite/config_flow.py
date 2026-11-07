@@ -27,6 +27,10 @@ from .const import (
     PROXY_MODE_DIRECT,
     PROXY_MODE_KEEPALIVE,
     PROXY_MODE_LOCAL,
+    CONF_STOVE_PROFILE,
+    PROFILE_LASIAN,
+    PROFILE_JOLLYMEC,
+    STOVE_PROFILES,
 )
 from .proxy import enqueue_command
 
@@ -127,7 +131,9 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if not errors:
                 resolved = await self._async_resolve_host(host)
-                api = FourHeatLiteApi(resolved)
+                api = FourHeatLiteApi(
+                    resolved, user_input.get(CONF_STOVE_PROFILE, PROFILE_LASIAN)
+                )
                 can_connect = await self.hass.async_add_executor_job(
                     api.test_connection
                 )
@@ -158,6 +164,7 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_DEVICE_KEY: device_key,
                     },
                     options={
+                        CONF_STOVE_PROFILE: user_input.get(CONF_STOVE_PROFILE, PROFILE_LASIAN),
                         CONF_PROXY_MODE: proxy_mode,
                         CONF_MODULE_ADDRESS: module_address,
                     },
@@ -173,6 +180,7 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_DEVICE_ID, default=default_id): str,
                     vol.Required(CONF_NAME, default="Pellet Stove"): str,
                     vol.Required(CONF_HOST, default=default_host): str,
+                    vol.Optional(CONF_STOVE_PROFILE, default=PROFILE_LASIAN): vol.In(STOVE_PROFILES),
                     vol.Optional(
                         CONF_PROXY_MODE, default=PROXY_MODE_DIRECT
                     ): vol.In({
@@ -269,9 +277,21 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         errors = {}
+        current_profile = self.config_entry.options.get(CONF_STOVE_PROFILE, PROFILE_LASIAN)
 
         if user_input is not None:
             proxy_mode = user_input.get(CONF_PROXY_MODE, PROXY_MODE_DIRECT)
+            profile = user_input.get(CONF_STOVE_PROFILE, current_profile)
+            # A profile change must never apply an old profile's schedule.
+            # Jolly Mec CCG schedules are currently read-only.
+            if profile != current_profile or profile == PROFILE_JOLLYMEC:
+                module_address = user_input.get(CONF_MODULE_ADDRESS, "").strip() or self.config_entry.data.get(CONF_HOST, "")
+                return self.async_create_entry(data={
+                    **self.config_entry.options,
+                    CONF_STOVE_PROFILE: profile,
+                    CONF_PROXY_MODE: proxy_mode,
+                    CONF_MODULE_ADDRESS: module_address,
+                })
             schedules_data = user_input.get("schedules")
 
             if not isinstance(schedules_data, list):
@@ -341,6 +361,7 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
                     CONF_MODULE_ADDRESS, ""
                 ).strip() or self.config_entry.data.get(CONF_HOST, "")
                 return self.async_create_entry(data={
+                    CONF_STOVE_PROFILE: profile,
                     CONF_PROXY_MODE: proxy_mode,
                     CONF_MODULE_ADDRESS: module_address,
                     CONF_ACTIVE_SCHEDULE: new_active,
@@ -374,6 +395,7 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Optional(CONF_STOVE_PROFILE, default=current_profile): vol.In(STOVE_PROFILES),
                     vol.Optional(
                         CONF_PROXY_MODE,
                         default=current_mode,
@@ -386,10 +408,9 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
                         CONF_MODULE_ADDRESS,
                         default=current_module_addr,
                     ): str,
-                    vol.Optional(
-                        "schedules",
-                        default=current_schedules,
-                    ): ObjectSelector(),
+                    **({} if current_profile == PROFILE_JOLLYMEC else {
+                        vol.Optional("schedules", default=current_schedules): ObjectSelector(),
+                    }),
                 }
             ),
             errors=errors,

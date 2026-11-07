@@ -32,6 +32,12 @@ echo -n 'SEL' | nc -w 3 <MODULE_IP> 80
 
 Tested with a Lasian Eriste air pellet stove. Should work with any stove using a 4HEAT Lite module (Tiemme electronics).
 
+An opt-in **Jolly Mec** profile supports whole-degree temperatures, its combustion
+power mapping, direct exhaust/ducted-fan readings and read-only CCG schedules.
+Select the profile during setup or in integration options. Existing entries keep
+the Lasian behavior. See [Jolly Mec compatibility and validation](docs/JOLLYMEC.md)
+for tested behavior and limitations; see also [issue #2](https://github.com/pafernanr/homeassistant-4heatlite/issues/2).
+
 ## Installation
 
 ### HACS (recommended)

@@ -1,5 +1,9 @@
 # Module Scheduling (Cron)
 
+Jolly Mec profiles expose their CCG program through `4heatlite.get_schedule` in
+read-only form. The H24 editor and writes described below apply to the default
+Lasian profile, not Jolly Mec. See [Jolly Mec profile](JOLLYMEC.md).
+
 The 4HEAT Lite WiFi module has a built-in scheduler that turns the stove on and off at configured times. The schedule is stored on the module itself, not in HA. The mobile app writes the schedule via the cloud API, and the module executes it locally based on its internal clock.
 
 ## How it works

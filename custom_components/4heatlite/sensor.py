@@ -14,7 +14,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DATA_COORDINATOR, DOMAIN, ERROR_NAMES, STATE_NAMES
+from .const import DATA_COORDINATOR, DOMAIN, ERROR_NAMES, STATE_NAMES, PROFILE_JOLLYMEC
 from .coordinator import FourHeatLiteCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,6 +38,8 @@ async def async_setup_entry(
     ]
 
     for defn in REGISTER_SENSOR_DEFS:
+        if defn["key"] == "ducted_fan_1" and coordinator.api.profile == PROFILE_JOLLYMEC:
+            defn = {**defn, "enabled_default": True, "zero_means_absent": False}
         entities.append(RegisterSensor(coordinator, name, defn))
 
     async_add_entities(entities)
@@ -73,6 +75,8 @@ class StoveStateSensor(FourHeatLiteEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
         state = self.coordinator.data["state"]
+        if self.coordinator.api.profile == PROFILE_JOLLYMEC and state == 7:
+            return "Final cleaning"
         return STATE_NAMES.get(state, f"Unknown ({state})")
 
     @property
@@ -118,7 +122,7 @@ class ExhaustTemperatureSensor(FourHeatLiteEntity, SensorEntity):
     def native_value(self):
         if self.coordinator.data is None:
             return None
-        return self.coordinator.data["exhaust_temp"]
+        return self.coordinator.data.get("exhaust_temp")
 
 
 class RoomTemperatureSensor(FourHeatLiteEntity, SensorEntity):
