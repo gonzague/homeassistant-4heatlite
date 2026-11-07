@@ -131,7 +131,8 @@ async def test_native_flow_stages_group_preserves_other_days_and_confirms(flow,s
     editor,api=flow
     assert (await editor.async_step_init())['menu_options']==['native','settings']
     await editor.async_step_native()
-    form=await editor.async_step_native({'mode':'3','days':'weekend'})
+    weekday_form=await editor.async_step_native({'mode':'3'})
+    form=await editor.async_step_native_slots(weekday_form['data_schema']({}))
     data=form['data_schema']({})
     data.update(start_1='07:30:00',end_1='09:00:00')
     review=await editor.async_step_native_slots(data)
@@ -148,7 +149,7 @@ async def test_native_flow_stages_group_preserves_other_days_and_confirms(flow,s
 async def test_mode_only_preserves_every_slot(flow,schedule):
     editor,api=flow
     await editor.async_step_native()
-    assert (await editor.async_step_native({'mode':'0','days':'mode_only'}))['step_id']=='native_review'
+    assert (await editor.async_step_native({'mode':'0'}))['step_id']=='native_review'
     assert editor._native_draft['days']==schedule['days']
     assert editor._native_draft['mode_raw']==0
     api.write_native_schedule.assert_not_called()
@@ -158,7 +159,8 @@ async def test_mode_only_preserves_every_slot(flow,schedule):
 async def test_seconds_and_invalid_intervals_stay_in_form(flow):
     editor,api=flow
     await editor.async_step_native()
-    form=await editor.async_step_native({'mode':'3','days':'sat'})
+    await editor.async_step_native({'mode':'1'})
+    form=await editor.async_step_native_day({'day':'sat'})
     data=form['data_schema']({}); data['start_1']='08:00:30'
     assert (await editor.async_step_native_slots(data))['errors']=={'base':'invalid_time'}
     api.write_native_schedule.assert_not_called()
@@ -168,7 +170,56 @@ async def test_seconds_and_invalid_intervals_stay_in_form(flow):
 async def test_conflict_ends_flow_without_retry(flow):
     editor,api=flow
     await editor.async_step_native()
-    await editor.async_step_native({'mode':'0','days':'mode_only'})
+    await editor.async_step_native({'mode':'0'})
     api.write_native_schedule.side_effect=native.NativeScheduleError('native_conflict')
     assert await editor.async_step_native_review({})=={'reason':'native_conflict'}
     api.write_native_schedule.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_weekly_mode_edits_one_program_for_all_days(flow):
+    editor,api=flow
+    first=await editor.async_step_native()
+    assert set(str(k) for k in first['data_schema'].schema)=={'mode'}
+    form=await editor.async_step_native({'mode':'2'})
+    assert form['step_id']=='native_slots'
+    data=form['data_schema']({})
+    data.update(enabled_1=True,start_1='06:30:00',end_1='08:30:00')
+    assert (await editor.async_step_native_slots(data))['step_id']=='native_review'
+    assert all(day['slots']==editor._native_draft['days'][0]['slots'] for day in editor._native_draft['days'])
+    assert editor._native_draft['days'][6]['slots'][0]=={'start':'06:30','end':'08:30','flag_raw':1}
+    api.write_native_schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_weekend_mode_has_two_independent_groups_before_review(flow):
+    editor,api=flow
+    await editor.async_step_native()
+    weekdays=await editor.async_step_native({'mode':'3'})
+    values=weekdays['data_schema']({}); values.update(enabled_1=True,start_1='06:00:00')
+    weekend=await editor.async_step_native_slots(values)
+    assert weekend['step_id']=='native_slots'
+    assert 'Saturday' in weekend['description_placeholders']['days']
+    values=weekend['data_schema']({}); values.update(start_1='10:00:00',end_1='11:00:00')
+    assert (await editor.async_step_native_slots(values))['step_id']=='native_review'
+    assert [d['slots'][0]['start'] for d in editor._native_draft['days']]==['06:00']*5+['10:00']*2
+    api.write_native_schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_daily_can_edit_several_days_before_saving(flow,schedule):
+    editor,api=flow
+    await editor.async_step_native()
+    choice=await editor.async_step_native({'mode':'1'})
+    assert choice['step_id']=='native_day'
+    assert choice['data_schema'].schema[next(iter(choice['data_schema'].schema))].config['options']==['mon','tue','wed','thu','fri','sat','sun']
+    form=await editor.async_step_native_day({'day':'tue'})
+    values=form['data_schema']({}); values.update(start_1='06:30:00',next_action='another_day')
+    assert (await editor.async_step_native_slots(values))['step_id']=='native_day'
+    form=await editor.async_step_native_day({'day':'thu'})
+    values=form['data_schema']({}); values.update(start_1='07:30:00')
+    assert (await editor.async_step_native_slots(values))['step_id']=='native_review'
+    assert editor._native_draft['days'][1]['slots'][0]['start']=='06:30'
+    assert editor._native_draft['days'][3]['slots'][0]['start']=='07:30'
+    for i in (0,2,4,5,6): assert editor._native_draft['days'][i]==schedule['days'][i]
+    api.write_native_schedule.assert_not_called()

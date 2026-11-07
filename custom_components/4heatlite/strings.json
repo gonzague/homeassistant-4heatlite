@@ -71,19 +71,15 @@
         }
       },
       "native": {
-        "title": "Stove schedule",
-        "description": "Read directly from the stove. Checked slots are enabled; mode OFF disables the entire program. Saving takes effect immediately and the stove runs the program without Home Assistant.\n\n{schedule}",
+        "title": "Choose the schedule type",
+        "description": "**Daily**: three separate slots for each day.\n\n**Weekly**: three identical slots every day.\n\n**Weekday / weekend**: three slots for Monday–Friday, then three for Saturday–Sunday.\n\nChoose a mode and submit to edit the times. Nothing is sent until the final review.",
         "data": {
-          "mode": "Timer mode",
-          "days": "Days to edit"
-        },
-        "data_description": {
-          "days": "A group applies the same three slots to every selected day. Other days are preserved."
+          "mode": "Schedule type"
         }
       },
       "native_slots": {
         "title": "Start and stop times",
-        "description": "Days: **{days}**. For a group, initial values come from its first day. All selected days receive these slots. End must follow start on the same day. Unchecked slots are stored but inactive.",
+        "description": "**Applies to: {days}**\n\nSet the start/stop times and enable the slots you need. These times apply to all listed days. Leave seconds at 00.\n\n{next_step}\n\nNothing has been sent to the stove yet.\n\nIf these days previously differed, initial values come from the first day; check the review before saving.",
         "data": {
           "enabled_1": "Slot 1 — enabled",
           "start_1": "Slot 1 — start",
@@ -93,12 +89,20 @@
           "end_2": "Slot 2 — stop",
           "enabled_3": "Slot 3 — enabled",
           "start_3": "Slot 3 — start",
-          "end_3": "Slot 3 — stop"
+          "end_3": "Slot 3 — stop",
+          "next_action": "After this day"
         }
       },
       "native_review": {
         "title": "Save this program to the stove?",
         "description": "**Current program**\n\n{before}\n\n**Program to save**\n\n{after}\n\nSubmit to apply immediately. Cancel to leave the stove unchanged. A change made on the remote since opening this editor will cancel this save."
+      },
+      "native_day": {
+        "title": "Choose a day to edit",
+        "description": "Each day has its own three slots. You can edit another day before saving.\n\n{schedule}",
+        "data": {
+          "day": "Day to edit"
+        }
       }
     },
     "error": {
@@ -133,17 +137,19 @@
     },
     "native_days": {
       "options": {
-        "mode_only": "Change mode only",
         "mon": "Monday",
         "tue": "Tuesday",
         "wed": "Wednesday",
         "thu": "Thursday",
         "fri": "Friday",
         "sat": "Saturday",
-        "sun": "Sunday",
-        "weekdays": "Monday–Friday",
-        "weekend": "Saturday–Sunday",
-        "all": "Every day"
+        "sun": "Sunday"
+      }
+    },
+    "native_next": {
+      "options": {
+        "review": "Review and save",
+        "another_day": "Edit another day"
       }
     }
   },

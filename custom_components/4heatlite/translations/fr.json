@@ -71,19 +71,15 @@
         }
       },
       "native": {
-        "title": "Programmation du poêle",
-        "description": "Lecture directe du poêle. Les cases cochées indiquent les créneaux actifs ; le mode Désactivé suspend tout le programme. L’enregistrement prend effet immédiatement et le programme fonctionne sans Home Assistant.\n\n{schedule}",
+        "title": "Choisir la programmation",
+        "description": "**Journalier** : trois créneaux différents pour chaque jour.\n\n**Hebdomadaire** : trois créneaux identiques pour tous les jours.\n\n**Fin de semaine** : trois créneaux du lundi au vendredi, puis trois autres du samedi au dimanche.\n\nChoisis le mode et appuie sur **Valider** pour éditer les heures. Aucun changement n’est envoyé avant le récapitulatif final.",
         "data": {
-          "mode": "Mode de programmation",
-          "days": "Jours à modifier"
-        },
-        "data_description": {
-          "days": "Un groupe applique les mêmes trois créneaux à tous les jours sélectionnés. Les autres jours sont conservés."
+          "mode": "Type de programmation"
         }
       },
       "native_slots": {
         "title": "Heures de démarrage et d’arrêt",
-        "description": "Jours : **{days}**. Pour un groupe, les valeurs initiales viennent du premier jour. Tous les jours sélectionnés recevront ces créneaux. La fin doit suivre le début dans la même journée. Les créneaux décochés sont conservés mais inactifs.",
+        "description": "**Jours concernés : {days}**\n\nRègle les heures de début et de fin et active les créneaux souhaités. Ces mêmes heures s’appliqueront à tous les jours indiqués. Les secondes doivent rester à 00.\n\n{next_step}\n\nRien n’est encore envoyé au poêle.\n\nSi ces jours avaient des horaires différents, les valeurs proposées viennent du premier jour ; vérifie le récapitulatif avant d’enregistrer.",
         "data": {
           "enabled_1": "Créneau 1 — activé",
           "start_1": "Créneau 1 — début",
@@ -93,12 +89,20 @@
           "end_2": "Créneau 2 — fin",
           "enabled_3": "Créneau 3 — activé",
           "start_3": "Créneau 3 — début",
-          "end_3": "Créneau 3 — fin"
+          "end_3": "Créneau 3 — fin",
+          "next_action": "Après ce jour"
         }
       },
       "native_review": {
         "title": "Enregistrer ce programme dans le poêle ?",
         "description": "**Programme actuel**\n\n{before}\n\n**Programme à enregistrer**\n\n{after}\n\nValider pour appliquer immédiatement. Annuler pour conserver le programme actuel. Une modification faite entre-temps sur la télécommande annule cet enregistrement."
+      },
+      "native_day": {
+        "title": "Quel jour veux-tu modifier ?",
+        "description": "Chaque jour a ses propres trois créneaux. Tu pourras modifier un autre jour avant d’enregistrer.\n\n{schedule}",
+        "data": {
+          "day": "Jour à modifier"
+        }
       }
     },
     "error": {
@@ -128,22 +132,24 @@
         "0": "Désactivé",
         "1": "Journalier",
         "2": "Hebdomadaire",
-        "3": "Semaine / week-end"
+        "3": "Fin de semaine (lun.–ven. / sam.–dim.)"
       }
     },
     "native_days": {
       "options": {
-        "mode_only": "Modifier seulement le mode",
         "mon": "Lundi",
         "tue": "Mardi",
         "wed": "Mercredi",
         "thu": "Jeudi",
         "fri": "Vendredi",
         "sat": "Samedi",
-        "sun": "Dimanche",
-        "weekdays": "Lundi–vendredi",
-        "weekend": "Samedi–dimanche",
-        "all": "Tous les jours"
+        "sun": "Dimanche"
+      }
+    },
+    "native_next": {
+      "options": {
+        "review": "Vérifier et enregistrer",
+        "another_day": "Modifier un autre jour"
       }
     }
   },

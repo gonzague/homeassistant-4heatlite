@@ -37,22 +37,38 @@ class NativeScheduleFlowMixin:
             self._native_baseline = baseline
             self._native_draft = deepcopy(baseline)
         else:
-            self._native_draft["mode_raw"] = int(user_input["mode"])
-            self._native_group = user_input["days"]
-            if self._native_group == "mode_only":
+            mode = int(user_input["mode"])
+            self._native_draft["mode_raw"] = mode
+            if mode == 0:
                 return await self.async_step_native_review()
+            if mode == 1:
+                return await self.async_step_native_day()
+            self._native_group = "all" if mode == 2 else "weekdays"
             return await self.async_step_native_slots()
         return self.async_show_form(
             step_id="native",
             data_schema=vol.Schema({
                 vol.Required("mode", default=str(baseline["mode_raw"])): SelectSelector({
-                    "options": ["0", "1", "2", "3"], "translation_key": "native_mode",
-                }),
-                vol.Required("days", default="mode_only"): SelectSelector({
-                    "options": ["mode_only", *GROUPS], "translation_key": "native_days",
+                    "options": ["1", "2", "3", "0"], "translation_key": "native_mode",
+                    "mode": "dropdown",
                 }),
             }),
-            description_placeholders={"schedule": self._native_summary(baseline)},
+        )
+
+    async def async_step_native_day(self, user_input=None):
+        """Daily mode alone lets the user choose a single weekday."""
+        if user_input is not None:
+            self._native_group = user_input["day"]
+            return await self.async_step_native_slots()
+        return self.async_show_form(
+            step_id="native_day",
+            data_schema=vol.Schema({
+                vol.Required("day", default="mon"): SelectSelector({
+                    "options": list(DAY_NAMES), "translation_key": "native_days",
+                    "mode": "dropdown",
+                }),
+            }),
+            description_placeholders={"schedule": self._native_summary(self._native_draft)},
         )
 
     async def async_step_native_slots(self, user_input=None):
@@ -76,15 +92,32 @@ class NativeScheduleFlowMixin:
                 errors["base"] = error
             if not errors:
                 self._native_draft = draft
+                if draft["mode_raw"] == 3 and self._native_group == "weekdays":
+                    self._native_group = "weekend"
+                    return await self.async_step_native_slots()
+                if draft["mode_raw"] == 1 and user_input.get("next_action") == "another_day":
+                    return await self.async_step_native_day()
                 return await self.async_step_native_review()
         schema = {}
         for i, slot in enumerate(slots, 1):
             schema[vol.Required(f"enabled_{i}", default=bool(slot["flag_raw"]))] = BooleanSelector()
             schema[vol.Required(f"start_{i}", default=slot["start"])] = TimeSelector()
             schema[vol.Required(f"end_{i}", default=slot["end"])] = TimeSelector()
+        if self._native_draft["mode_raw"] == 1:
+            schema[vol.Required("next_action", default="review")] = SelectSelector({
+                "options": ["review", "another_day"], "translation_key": "native_next",
+            })
+        french = self._native_french()
+        if self._native_draft["mode_raw"] == 3 and self._native_group == "weekdays":
+            next_step = "Ensuite : les créneaux du samedi et du dimanche." if french else "Next: Saturday and Sunday time slots."
+        else:
+            next_step = "Ensuite : récapitulatif avant enregistrement." if french else "Next: review before saving."
         return self.async_show_form(
             step_id="native_slots", data_schema=vol.Schema(schema), errors=errors,
-            description_placeholders={"days": ", ".join(self._native_day_labels()[i] for i in indices)},
+            description_placeholders={
+                "days": ", ".join(self._native_day_labels()[i] for i in indices),
+                "next_step": next_step,
+            },
         )
 
     async def async_step_native_review(self, user_input=None):

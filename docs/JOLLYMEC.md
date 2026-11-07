@@ -85,12 +85,19 @@ packets and more than one receive buffer.
 ## Native CCG / CCS schedules
 
 Open the integration's **Configure** button → **Schedule stored in the stove**.
-The editor reads the current program directly from the module. Choose a timer
-mode and one day or a group, edit three start/stop times and enable checkboxes,
-then review the complete before/after program before saving. Group edits copy
-the first selected day's initial values to every explicitly selected day; all
-other days are preserved. Select **Change mode only** to retain every slot.
-Mode OFF disables the timer without clearing its stored slots.
+The editor reads the current program directly from the module. Choose a mode:
+
+- **Daily**: select a day and edit its three slots. You can edit another day
+  before reviewing and saving; untouched days are preserved.
+- **Weekly**: edit three slots once; they apply to all seven days.
+- **Weekday / weekend**: first edit three Monday–Friday slots, then three
+  Saturday–Sunday slots. Both groups appear in the final review.
+- **Disabled**: review disabling the timer without clearing its stored slots.
+
+Every slot has an enabled checkbox and start/stop time. Nothing is sent while
+moving between editor screens. Review the complete before/after program before
+saving. When a group previously had different values, its first day supplies
+the initial form values; submitting that form applies them to the whole group.
 
 `4heatlite.get_schedule` returns `format: CCG`, `mode_raw`, seven named day
 groups, and three slots with `start`, `end`, and `flag_raw` per day. Mode codes
