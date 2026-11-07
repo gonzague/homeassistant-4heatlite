@@ -8,7 +8,7 @@ import pytest
 from homeassistant.exceptions import HomeAssistantError
 
 Api=importlib.import_module('custom_components.4heatlite.api').FourHeatLiteApi
-Number=importlib.import_module('custom_components.4heatlite.number').DuctedFanLevel
+Select=importlib.import_module('custom_components.4heatlite.select').DuctedFanLevel
 
 
 def test_write_matches_verified_upstream_example():
@@ -51,16 +51,44 @@ def test_mismatched_readback_fails_without_retry(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_number_only_sets_fan_and_preserves_combustion():
+async def test_select_only_sets_fan_and_preserves_combustion():
     async def executor(fn,*args): return fn(*args)
     coordinator=SimpleNamespace(data={'ducted_fan_1':1,'power':3},api=SimpleNamespace(set_ducted_fan=Mock(return_value=4)),
         async_request_refresh=AsyncMock(),push_data=Mock(),last_update_success=True)
-    entity=Number(coordinator,'Test')
+    entity=Select(coordinator,'Test')
     entity.hass=SimpleNamespace(async_add_executor_job=executor)
-    assert entity.native_value==1
-    await entity.async_set_native_value(4)
+    assert entity.current_option=="1"
+    assert entity.options==["off","1","2","3","4","5","6"]
+    await entity.async_select_option("4")
     coordinator.api.set_ducted_fan.assert_called_once_with(4)
     coordinator.push_data.assert_called_once_with({'ducted_fan_1':4})
     assert coordinator.data['power']==3
-    with pytest.raises(HomeAssistantError): await entity.async_set_native_value(1.5)
+    with pytest.raises(HomeAssistantError): await entity.async_select_option("7")
     coordinator.api.set_ducted_fan.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_select_off_and_unknown_values():
+    async def executor(fn,*args): return fn(*args)
+    coordinator=SimpleNamespace(data={'ducted_fan_1':0},api=SimpleNamespace(set_ducted_fan=Mock(return_value=0)),async_request_refresh=AsyncMock(),push_data=Mock())
+    entity=Select(coordinator,'Test'); entity.hass=SimpleNamespace(async_add_executor_job=executor)
+    assert entity.current_option=='off'
+    await entity.async_select_option('off')
+    coordinator.api.set_ducted_fan.assert_called_once_with(0)
+    coordinator.data['ducted_fan_1']=7
+    assert entity.current_option is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('owner',['entry','other_entry'])
+async def test_numeric_control_migration_is_scoped_to_this_entry(monkeypatch,owner):
+    module=importlib.import_module('custom_components.4heatlite.select')
+    registry=SimpleNamespace(async_get_entity_id=Mock(return_value='number.old'),async_get=Mock(return_value=SimpleNamespace(config_entry_id=owner,name=None)),async_remove=Mock())
+    monkeypatch.setattr(module.er,'async_get',lambda hass:registry)
+    api=SimpleNamespace(profile='jollymec')
+    hass=SimpleNamespace(data={'4heatlite':{'entry':{'coordinator':SimpleNamespace(api=api)}}})
+    add=Mock()
+    await module.async_setup_entry(hass,SimpleNamespace(entry_id='entry',data={'name':'Test'}),add)
+    if owner=='entry': registry.async_remove.assert_called_once_with('number.old')
+    else: registry.async_remove.assert_not_called()
+    add.assert_called_once()

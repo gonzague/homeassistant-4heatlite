@@ -154,9 +154,18 @@
     }
   },
   "entity": {
-    "number": {
+    "select": {
       "ducted_fan_1": {
-        "name": "Puissance de canalisation 1"
+        "name": "Puissance de canalisation 1",
+        "state": {
+          "off": "Arrêt (0)",
+          "1": "1",
+          "2": "2",
+          "3": "3",
+          "4": "4",
+          "5": "5",
+          "6": "6"
+        }
       }
     }
   }

@@ -75,7 +75,7 @@ packets and more than one receive buffer.
 - Presets are Silent and Power 1–5. They use the offset wire value from issue #2.
 - Temperature and power write payloads are tested against the examples reported
   in issue #2; they were **not sent** to the second installation during validation.
-- **Ducted fan 1 level** is a separate number control (0 = off, levels 1–6).
+- **Ducted fan 1 level** is a dropdown with Off (0) and levels 1–6.
   It writes `0e0266`, using the payload verified in issue #2, then reads back
   that register. It does not change combustion power or turn the stove on.
   Raw 7 is not exposed because its meaning is unverified. No channel-2 control

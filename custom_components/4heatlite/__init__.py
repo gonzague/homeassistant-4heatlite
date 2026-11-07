@@ -45,7 +45,7 @@ from .proxy import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.CLIMATE, Platform.NUMBER]
+PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.CLIMATE, Platform.SELECT]
 DATA_PLATFORMS = "platforms"
 PROXY_STATE = "proxy_state"
 

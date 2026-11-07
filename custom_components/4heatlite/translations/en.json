@@ -154,9 +154,18 @@
     }
   },
   "entity": {
-    "number": {
+    "select": {
       "ducted_fan_1": {
-        "name": "Ducted fan 1 level"
+        "name": "Ducted fan 1 level",
+        "state": {
+          "off": "Off (0)",
+          "1": "1",
+          "2": "2",
+          "3": "3",
+          "4": "4",
+          "5": "5",
+          "6": "6"
+        }
       }
     }
   }
