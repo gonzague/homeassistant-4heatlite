@@ -68,19 +68,22 @@ packets and more than one receive buffer.
   acknowledged and state 7 (final cleaning) was observed. During cooldown the
   stove entered state 9 with raw error 32, confirmed on the remote as lack of
   depression. After the user acknowledged the alarm on the physical remote,
-  OFF was confirmed on the remote and by three consecutive state-0 reads. An
-  uninterrupted automatic shutdown without that alarm has not been validated.
+  OFF was confirmed on the remote and by three consecutive state-0 reads. A
+  subsequent shutdown completed without that alarm, with three consecutive
+  state-0 reads.
 - Target temperatures use a step of 1 °C and the whole-degree wire format from
   issue #2. Values outside 10–40 or with fractional degrees are rejected.
 - Presets are Silent and Power 1–5. They use the offset wire value from issue #2.
 - Temperature and power write payloads are tested against the examples reported
-  in issue #2; they were **not sent** to the second installation during validation.
+  in issue #2. During subsequent Home Assistant control testing by the owner,
+  a changed temperature target and the Silent preset were observed on the device.
 - **Ducted fan 1 level** is a dropdown with Off (0) and levels 1–6.
   It writes `0e0266`, using the payload verified in issue #2, then reads back
   that register. It does not change combustion power or turn the stove on.
   Raw 7 is not exposed because its meaning is unverified. No channel-2 control
   is added without evidence of a second outlet. This is a configured level,
-  not measured fan RPM.
+  not measured fan RPM. A write at the existing level 1 was verified by direct
+  readback; a later owner action through Home Assistant set level 0, also read back.
 
 ## Native CCG / CCS schedules
 
@@ -99,8 +102,7 @@ hours. An unchanged program appears once with “No changes”. Edits to disable
 slots are still explicitly listed before saving.
 
 Every slot has an enabled checkbox and start/stop time. Nothing is sent while
-moving between editor screens. Review the complete before/after program before
-saving. When a group previously had different values, its first day supplies
+moving between editor screens. Review the resulting program and explicit changes before saving. When a group previously had different values, its first day supplies
 the initial form values; submitting that form applies them to the whole group.
 
 `4heatlite.get_schedule` returns `format: CCG`, `mode_raw`, seven named day

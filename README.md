@@ -83,7 +83,8 @@ The Device ID is printed on the module's label. You can also find it in the 4HEA
 
 After setup, go to the integration's options to change:
 - **Proxy Mode**: Direct; entries configured through the cloud also offer Cloud Keepalive and Local Only (see [Proxy Modes](docs/PROXY_MODES.md))
-- **Heating Schedules**: YAML editor with multiple named schedules. Set `active: true` on one to send it to the stove. See the [schedule example](#schedule-management) below.
+- **Jolly Mec schedules**: native on/off editor with daily, weekly and weekday/weekend modes, three slots per group, and a compact review before saving.
+- **Lasian Heating Schedules**: YAML editor with multiple named schedules. Set `active: true` on one to send it to the stove. See the [schedule example](#schedule-management) below.
 
 To enable debug logging, use HA's built-in toggle: go to the integration page, click the three-dot menu, and select "Enable debug logging".
 

@@ -1,6 +1,6 @@
 # Proxy Modes
 
-The 4HEAT Lite module's local TCP API is **read-only** — write commands (temperature changes, ON/OFF) are only accepted via cloud polling. The integration includes an embedded HTTP proxy that intercepts the module's cloud traffic and injects local commands, using Home Assistant's native `HomeAssistantView` pattern. No extra processes or ports on the HA side.
+Local TCP write support depends on the controller. Direct writes have been verified with the [Jolly Mec profile](JOLLYMEC.md), which can operate without this proxy. For controllers that require cloud polling for writes, the proxy provides a local command delivery path. The integration includes an embedded HTTP proxy that intercepts the module's cloud traffic and injects local commands, using Home Assistant's native `HomeAssistantView` pattern. No extra processes or ports on the HA side.
 
 ## Architecture
 

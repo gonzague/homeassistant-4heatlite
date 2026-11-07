@@ -6,7 +6,7 @@ TCP-only with fresh comparison and readback verification; they are never queued.
 The H24 temperature-band editor below applies only to the default Lasian profile.
 See [Jolly Mec profile](JOLLYMEC.md#native-ccg--ccs-schedules).
 
-The 4HEAT Lite WiFi module has a built-in scheduler that turns the stove on and off at configured times. The schedule is stored on the module itself, not in HA. The mobile app writes the schedule via the cloud API, and the module executes it locally based on its internal clock.
+The 4HEAT Lite WiFi module has a built-in scheduler that turns the stove on and off at configured times. The schedule is stored on the module itself, not in HA. The mobile app writes the schedule directly over TCP, and the module executes it locally based on its internal clock.
 
 ## How it works
 
