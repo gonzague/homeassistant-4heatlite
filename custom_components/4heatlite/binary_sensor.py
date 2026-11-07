@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DATA_COORDINATOR, DOMAIN
+from .const import DATA_COORDINATOR, DOMAIN, PROFILE_JOLLYMEC
 from .coordinator import FourHeatLiteCoordinator
 
 
@@ -67,6 +67,16 @@ class StoveErrorActiveSensor(CoordinatorEntity, BinarySensorEntity):
     def is_on(self):
         if self.coordinator.data is None:
             return None
+        if self.coordinator.api.profile == PROFILE_JOLLYMEC:
+            state = self.coordinator.data.get("state")
+            if state == 9:
+                return True
+            if state == 0:
+                return False
+            # A nonzero alarm byte can survive acknowledgement and OFF.
+            # Its active/retained meaning in other states is not established.
+            if self.coordinator.data["error"] != 0:
+                return None
         return self.coordinator.data["error"] != 0
 
     @property

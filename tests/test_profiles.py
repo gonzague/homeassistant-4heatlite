@@ -337,3 +337,20 @@ def test_confirmed_off_uses_state_despite_retained_raw_alarm_and_flag():
     assert data['error'] == 32 and data['on_off'] == 1
     assert entity.hvac_mode == climate.HVACMode.OFF
     assert entity.hvac_action == climate.HVACAction.OFF
+
+
+@pytest.mark.parametrize('profile, state, error, expected', [
+    (const.PROFILE_JOLLYMEC, 0, 32, False),
+    (const.PROFILE_JOLLYMEC, 9, 32, True),
+    (const.PROFILE_JOLLYMEC, 9, 0, True),
+    (const.PROFILE_JOLLYMEC, 6, 32, None),
+    (const.PROFILE_JOLLYMEC, 7, 32, None),
+    (const.PROFILE_JOLLYMEC, 5, 0, False),
+    (const.PROFILE_LASIAN, 0, 2, True),
+    (const.PROFILE_LASIAN, 5, 0, False),
+])
+def test_active_alarm_distinguishes_confirmed_off_from_block(profile, state, error, expected):
+    module = importlib.import_module('custom_components.4heatlite.binary_sensor')
+    coordinator = SimpleNamespace(api=Api('test.invalid', profile), data={'state': state, 'error': error})
+    entity = module.StoveErrorActiveSensor(coordinator, 'Test')
+    assert entity.is_on is expected

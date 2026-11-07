@@ -39,8 +39,10 @@ After the user acknowledged that alarm on the remote, the remote displayed OFF
 and three consecutive network samples reported state 0, while the raw alarm byte
 remained 32 and the legacy `on_off` byte remained 1. These bytes must not be used
 alone to infer current heating or an active alarm. The climate entity uses the
-operating state for its OFF status. The error sensor reports the received value;
-it does not claim to distinguish an active alarm from a retained one.
+operating state for its OFF status. **Reported Alarm** preserves the received
+code. **Error Active** is off in state 0, on in state 9 (Block), and unknown when
+a nonzero alarm byte accompanies another state whose active/retained meaning
+has not been verified. A zero alarm byte outside Block reports no active error.
 
 The combustion raw value is also kept as `power_raw` in coordinator data. Raw 7
 has no verified user-facing meaning, so it is not offered as a preset. Negative

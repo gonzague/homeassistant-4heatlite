@@ -91,7 +91,8 @@ class StoveErrorSensor(FourHeatLiteEntity, SensorEntity):
 
     def __init__(self, coordinator, stove_name):
         super().__init__(coordinator, stove_name)
-        self._attr_name = f"{stove_name} Error"
+        label = "Reported Alarm" if coordinator.api.profile == PROFILE_JOLLYMEC else "Error"
+        self._attr_name = f"{stove_name} {label}"
         self._attr_unique_id = f"{stove_name}_error"
 
     @property
