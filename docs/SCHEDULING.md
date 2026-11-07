@@ -1,8 +1,10 @@
 # Module Scheduling (Cron)
 
-Jolly Mec profiles expose their CCG program through `4heatlite.get_schedule` in
-read-only form. The H24 editor and writes described below apply to the default
-Lasian profile, not Jolly Mec. See [Jolly Mec profile](JOLLYMEC.md).
+Jolly Mec profiles expose the native CCG/CCS on/off program through an options
+editor with time pickers, enabled flags and a review step. Native writes are
+TCP-only with fresh comparison and readback verification; they are never queued.
+The H24 temperature-band editor below applies only to the default Lasian profile.
+See [Jolly Mec profile](JOLLYMEC.md#native-ccg--ccs-schedules).
 
 The 4HEAT Lite WiFi module has a built-in scheduler that turns the stove on and off at configured times. The schedule is stored on the module itself, not in HA. The mobile app writes the schedule via the cloud API, and the module executes it locally based on its internal clock.
 
@@ -143,7 +145,7 @@ The queue response must use compact JSON (`separators=(",",":")`) to fit within 
 
 The mobile app disables the schedule by sending a CCS command with `period=0`, which overwrites whatever schedule is active (including H24) with a disabled CCS. The app caches the schedule locally and re-sends it to re-enable.
 
-**This integration uses H24 only.** Instead of switching to CCS, disabling sends an H24 command with two OFF transitions (minimum required). The ECO/COMFORT/COMFORT2 temperatures from the current schedule are preserved in the command:
+**For the Lasian H24 editor,** Instead of switching to CCS, disabling sends an H24 command with two OFF transitions (minimum required). The ECO/COMFORT/COMFORT2 temperatures from the current schedule are preserved in the command:
 
 ```
 ["H24","9","#13","0","<ECO>","<COMFORT>","<COMFORT2>","0","0","0","0"]

@@ -45,7 +45,7 @@ from .proxy import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.CLIMATE]
+PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.CLIMATE, Platform.NUMBER]
 DATA_PLATFORMS = "platforms"
 PROXY_STATE = "proxy_state"
 
@@ -209,7 +209,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
         coordinator = entry_data.get(DATA_COORDINATOR)
         if coordinator and not coordinator.api.supports_schedule_write:
-            raise HomeAssistantError("Jolly Mec CCG schedules are read-only")
+            raise HomeAssistantError("H24 scheduling is unsupported for Jolly Mec; use the native schedule editor in integration options")
 
         schedule = call.data["schedule"]
         error = FourHeatLiteApi.validate_schedule(schedule)

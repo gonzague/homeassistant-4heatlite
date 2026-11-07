@@ -33,6 +33,7 @@ from .const import (
     STOVE_PROFILES,
 )
 from .proxy import enqueue_command
+from .native_schedule_flow import NativeScheduleFlowMixin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -289,10 +290,15 @@ class FourHeatLiteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 PROXY_STATE = "proxy_state"
 
 
-class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
+class FourHeatLiteOptionsFlow(NativeScheduleFlowMixin, config_entries.OptionsFlow):
     """Handle options for 4HEAT Lite."""
 
     async def async_step_init(self, user_input=None):
+        if user_input is None and self.config_entry.options.get(CONF_STOVE_PROFILE) == PROFILE_JOLLYMEC:
+            return self.async_show_menu(step_id="init", menu_options=["native", "settings"])
+        return await self.async_step_settings(user_input)
+
+    async def async_step_settings(self, user_input=None):
         errors = {}
         current_profile = self.config_entry.options.get(CONF_STOVE_PROFILE, PROFILE_LASIAN)
 
@@ -305,7 +311,7 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
                 return self.async_abort(reason="cloud_setup_required")
             profile = user_input.get(CONF_STOVE_PROFILE, current_profile)
             # A profile change must never apply an old profile's schedule.
-            # Jolly Mec CCG schedules are currently read-only.
+            # Native Jolly Mec scheduling has its own editor and delivery path.
             if profile != current_profile or profile == PROFILE_JOLLYMEC:
                 module_address = user_input.get(CONF_MODULE_ADDRESS, "").strip() or self.config_entry.data.get(CONF_HOST, "")
                 return self.async_create_entry(data={
@@ -414,7 +420,7 @@ class FourHeatLiteOptionsFlow(config_entries.OptionsFlow):
                 })
 
         return self.async_show_form(
-            step_id="init",
+            step_id="settings",
             data_schema=vol.Schema(
                 {
                     vol.Optional(CONF_STOVE_PROFILE, default=current_profile): vol.In(STOVE_PROFILES),

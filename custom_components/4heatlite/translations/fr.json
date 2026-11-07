@@ -1,0 +1,157 @@
+{
+  "config": {
+    "step": {
+      "discovery": {
+        "title": "Discover Stove Module",
+        "description": "Select a module found on your local network, or choose manual entry.",
+        "data": {
+          "selected_device": "Discovered modules"
+        }
+      },
+      "device": {
+        "title": "4HEAT Lite Stove",
+        "description": "Enter the module IP address or hostname and select the stove profile. For direct local setup, the device ID is optional; a discovered ID helps track IP changes.",
+        "data": {
+          "device_id": "Device ID (printed on module label)",
+          "name": "Stove name",
+          "host": "Host (IP address of 4HEAT module)",
+          "proxy_mode": "Proxy Mode",
+          "module_address": "Expected module IP",
+          "stove_profile": "Stove profile"
+        },
+        "data_description": {
+          "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT.",
+          "stove_profile": "Select Jolly Mec for whole-degree temperatures, combustion power and native on/off scheduling. Save and reopen options after changing profiles."
+        }
+      },
+      "cloud": {
+        "title": "4HEAT Cloud Login",
+        "description": "Authenticate with your 4HEAT account to retrieve the device key.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "user": {
+        "title": "Connect your 4HEAT Lite stove",
+        "description": "Choose direct local access without an account, or cloud-assisted setup for proxy modes.",
+        "menu_options": {
+          "local": "Direct local connection (no cloud account)",
+          "cloud": "Cloud-assisted setup"
+        }
+      }
+    },
+    "error": {
+      "auth_failed": "Authentication failed. Check email and password.",
+      "cannot_connect": "Cannot connect to module. Verify IP and that stove is powered on.",
+      "already_configured": "This device is already configured.",
+      "device_key_failed": "Could not retrieve device key from 4HEAT cloud. Check device ID."
+    }
+  },
+  "options": {
+    "step": {
+      "settings": {
+        "description": "Cloud Keepalive and Local Only modes require DNS/DNAT setup. See [Proxy Modes documentation]({proxy_modes_url}).",
+        "data": {
+          "proxy_mode": "Proxy Mode",
+          "module_address": "Expected module IP",
+          "schedules": "Heating Schedules",
+          "stove_profile": "Stove profile"
+        },
+        "data_description": {
+          "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT.",
+          "stove_profile": "Select Jolly Mec for whole-degree temperatures, combustion power and native on/off scheduling. Save and reopen options after changing profiles."
+        }
+      },
+      "init": {
+        "title": "4HEAT Lite",
+        "menu_options": {
+          "native": "Programmation enregistrée dans le poêle",
+          "settings": "Connexion et profil du poêle"
+        }
+      },
+      "native": {
+        "title": "Programmation du poêle",
+        "description": "Lecture directe du poêle. Les cases cochées indiquent les créneaux actifs ; le mode Désactivé suspend tout le programme. L’enregistrement prend effet immédiatement et le programme fonctionne sans Home Assistant.\n\n{schedule}",
+        "data": {
+          "mode": "Mode de programmation",
+          "days": "Jours à modifier"
+        },
+        "data_description": {
+          "days": "Un groupe applique les mêmes trois créneaux à tous les jours sélectionnés. Les autres jours sont conservés."
+        }
+      },
+      "native_slots": {
+        "title": "Heures de démarrage et d’arrêt",
+        "description": "Jours : **{days}**. Pour un groupe, les valeurs initiales viennent du premier jour. Tous les jours sélectionnés recevront ces créneaux. La fin doit suivre le début dans la même journée. Les créneaux décochés sont conservés mais inactifs.",
+        "data": {
+          "enabled_1": "Créneau 1 — activé",
+          "start_1": "Créneau 1 — début",
+          "end_1": "Créneau 1 — fin",
+          "enabled_2": "Créneau 2 — activé",
+          "start_2": "Créneau 2 — début",
+          "end_2": "Créneau 2 — fin",
+          "enabled_3": "Créneau 3 — activé",
+          "start_3": "Créneau 3 — début",
+          "end_3": "Créneau 3 — fin"
+        }
+      },
+      "native_review": {
+        "title": "Enregistrer ce programme dans le poêle ?",
+        "description": "**Programme actuel**\n\n{before}\n\n**Programme à enregistrer**\n\n{after}\n\nValider pour appliquer immédiatement. Annuler pour conserver le programme actuel. Une modification faite entre-temps sur la télécommande annule cet enregistrement."
+      }
+    },
+    "error": {
+      "invalid_schedule": "Invalid schedule format. Required keys: eco, comfort, comfort2, slots.",
+      "invalid_temperature": "Temperature values must be between 10.0 and 40.0.",
+      "invalid_time": "Les heures doivent être à la minute et la fin doit suivre le début dans la même journée.",
+      "invalid_day": "Day names must be: mon, tue, wed, thu, fri, sat, sun.",
+      "overlapping_slots": "Les créneaux actifs se chevauchent.",
+      "schedule_send_failed": "Failed to send schedule to module.",
+      "multiple_active": "Only one schedule can be active at a time.",
+      "native_invalid": "Valeurs de programmation non prises en charge. Aucun programme envoyé."
+    },
+    "abort": {
+      "cloud_setup_required": "This entry has no cloud device key. Use direct mode, or configure the device through cloud-assisted setup to use proxy modes.",
+      "native_invalid": "Valeurs de programmation non prises en charge. Aucun programme envoyé.",
+      "native_read_failed": "Impossible de lire le programme actuel du poêle. Aucun programme envoyé.",
+      "native_unsupported": "Ce programme ne peut pas être modifié avec le format pris en charge. Aucun programme envoyé.",
+      "native_conflict": "Le programme a changé dans le poêle. Rien n’a été envoyé. Rouvrez l’éditeur pour lire les nouvelles valeurs.",
+      "native_rejected": "Le poêle a refusé le programme. Rouvrez l’éditeur pour vérifier les valeurs actuelles.",
+      "native_unverified": "Le programme a été envoyé une seule fois mais son enregistrement n’a pas pu être vérifié. Il peut avoir pris effet. Aucun nouvel envoi automatique. Rouvrez l’éditeur ou vérifiez la télécommande avant de réessayer.",
+      "native_saved": "Le programme enregistré dans le poêle a été relu et vérifié."
+    }
+  },
+  "selector": {
+    "native_mode": {
+      "options": {
+        "0": "Désactivé",
+        "1": "Journalier",
+        "2": "Hebdomadaire",
+        "3": "Semaine / week-end"
+      }
+    },
+    "native_days": {
+      "options": {
+        "mode_only": "Modifier seulement le mode",
+        "mon": "Lundi",
+        "tue": "Mardi",
+        "wed": "Mercredi",
+        "thu": "Jeudi",
+        "fri": "Vendredi",
+        "sat": "Samedi",
+        "sun": "Dimanche",
+        "weekdays": "Lundi–vendredi",
+        "weekend": "Samedi–dimanche",
+        "all": "Tous les jours"
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "ducted_fan_1": {
+        "name": "Puissance de canalisation 1"
+      }
+    }
+  }
+}

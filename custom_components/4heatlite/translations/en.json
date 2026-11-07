@@ -21,7 +21,7 @@
         },
         "data_description": {
           "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT.",
-          "stove_profile": "Select Jolly Mec for whole-degree temperatures and its combustion-power mapping. Jolly Mec schedules can be read but not edited. When changing profiles, save and reopen options before editing schedules."
+          "stove_profile": "Select Jolly Mec for whole-degree temperatures, combustion power and native on/off scheduling. Save and reopen options after changing profiles."
         }
       },
       "cloud": {
@@ -50,7 +50,7 @@
   },
   "options": {
     "step": {
-      "init": {
+      "settings": {
         "description": "Cloud Keepalive and Local Only modes require DNS/DNAT setup. See [Proxy Modes documentation]({proxy_modes_url}).",
         "data": {
           "proxy_mode": "Proxy Mode",
@@ -60,8 +60,45 @@
         },
         "data_description": {
           "module_address": "Source IP that Home Assistant expects for proxy requests. Set to router IP if the module is behind NAT.",
-          "stove_profile": "Select Jolly Mec for whole-degree temperatures and its combustion-power mapping. Jolly Mec schedules can be read but not edited. When changing profiles, save and reopen options before editing schedules."
+          "stove_profile": "Select Jolly Mec for whole-degree temperatures, combustion power and native on/off scheduling. Save and reopen options after changing profiles."
         }
+      },
+      "init": {
+        "title": "4HEAT Lite",
+        "menu_options": {
+          "native": "Schedule stored in the stove",
+          "settings": "Connection and stove profile"
+        }
+      },
+      "native": {
+        "title": "Stove schedule",
+        "description": "Read directly from the stove. Checked slots are enabled; mode OFF disables the entire program. Saving takes effect immediately and the stove runs the program without Home Assistant.\n\n{schedule}",
+        "data": {
+          "mode": "Timer mode",
+          "days": "Days to edit"
+        },
+        "data_description": {
+          "days": "A group applies the same three slots to every selected day. Other days are preserved."
+        }
+      },
+      "native_slots": {
+        "title": "Start and stop times",
+        "description": "Days: **{days}**. For a group, initial values come from its first day. All selected days receive these slots. End must follow start on the same day. Unchecked slots are stored but inactive.",
+        "data": {
+          "enabled_1": "Slot 1 — enabled",
+          "start_1": "Slot 1 — start",
+          "end_1": "Slot 1 — stop",
+          "enabled_2": "Slot 2 — enabled",
+          "start_2": "Slot 2 — start",
+          "end_2": "Slot 2 — stop",
+          "enabled_3": "Slot 3 — enabled",
+          "start_3": "Slot 3 — start",
+          "end_3": "Slot 3 — stop"
+        }
+      },
+      "native_review": {
+        "title": "Save this program to the stove?",
+        "description": "**Current program**\n\n{before}\n\n**Program to save**\n\n{after}\n\nSubmit to apply immediately. Cancel to leave the stove unchanged. A change made on the remote since opening this editor will cancel this save."
       }
     },
     "error": {
@@ -71,10 +108,50 @@
       "invalid_day": "Day names must be: mon, tue, wed, thu, fri, sat, sun.",
       "overlapping_slots": "Time slots overlap on the same day.",
       "schedule_send_failed": "Failed to send schedule to module.",
-      "multiple_active": "Only one schedule can be active at a time."
+      "multiple_active": "Only one schedule can be active at a time.",
+      "native_invalid": "Unsupported schedule values. No program was sent."
     },
     "abort": {
-      "cloud_setup_required": "This entry has no cloud device key. Use direct mode, or configure the device through cloud-assisted setup to use proxy modes."
+      "cloud_setup_required": "This entry has no cloud device key. Use direct mode, or configure the device through cloud-assisted setup to use proxy modes.",
+      "native_invalid": "Unsupported schedule values. No program was sent.",
+      "native_read_failed": "Cannot read the current stove schedule. No program was sent.",
+      "native_unsupported": "This program cannot be edited with the supported native format. No program was sent.",
+      "native_conflict": "The program changed on the stove. Nothing was sent. Reopen the editor to read the latest program.",
+      "native_rejected": "The stove rejected the program. Reopen the editor to inspect its current schedule.",
+      "native_unverified": "The program was sent once, but its storage could not be verified. It may have taken effect. No automatic retry was made. Reopen the editor or check the remote before trying again.",
+      "native_saved": "The program stored in the stove has been read back and verified."
+    }
+  },
+  "selector": {
+    "native_mode": {
+      "options": {
+        "0": "Disabled",
+        "1": "Daily",
+        "2": "Weekly",
+        "3": "Weekday / weekend"
+      }
+    },
+    "native_days": {
+      "options": {
+        "mode_only": "Change mode only",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday",
+        "weekdays": "Monday–Friday",
+        "weekend": "Saturday–Sunday",
+        "all": "Every day"
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "ducted_fan_1": {
+        "name": "Ducted fan 1 level"
+      }
     }
   }
 }

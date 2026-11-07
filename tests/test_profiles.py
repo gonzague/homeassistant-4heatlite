@@ -145,7 +145,7 @@ def test_jollymec_rejects_unknown_power(value):
 def test_ccg_schedule_keeps_day_groups_and_uninterpreted_flags():
     result = Api.parse_ccg_response(CAPTURE["schedule"])
     assert result["format"] == "CCG"
-    assert result["read_only"] is True
+    assert result["read_only"] is False
     assert result["mode_raw"] == 3
     assert result["days"][5] == {"day": "sat", "slots": [
         {"start": "08:00", "end": "09:00", "flag_raw": 0},
@@ -248,7 +248,7 @@ async def test_service_blocks_jollymec_schedule_writes():
         services=SimpleNamespace(async_register=lambda domain, name, callback, **kw: callbacks.update({name: callback})),
     )
     integration._register_services(hass)
-    with pytest.raises(HomeAssistantError, match="read-only"):
+    with pytest.raises(HomeAssistantError, match="H24 scheduling is unsupported"):
         await callbacks[const.SERVICE_SET_SCHEDULE](SimpleNamespace(data={"config_entry_id": "entry", "schedule": {}}))
 
 
@@ -277,7 +277,7 @@ async def test_jollymec_options_hide_schedule_editor(monkeypatch):
     entry = SimpleNamespace(options={const.CONF_STOVE_PROFILE: const.PROFILE_JOLLYMEC}, data={"host": "test.invalid"})
     monkeypatch.setattr(type(flow), "config_entry", property(lambda _: entry))
     monkeypatch.setattr(flow, "async_show_form", lambda **kwargs: kwargs)
-    result = await flow.async_step_init()
+    result = await flow.async_step_settings()
     keys = {str(key) for key in result["data_schema"].schema}
     assert "schedules" not in keys
     assert "stove_profile" in keys

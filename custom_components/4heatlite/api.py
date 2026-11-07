@@ -4,6 +4,9 @@ import json
 import logging
 import socket
 import time
+from threading import Lock
+
+from .native_schedule import NativeScheduleError, build_native_schedule, validate_native_schedule
 
 from .const import (
     BAND_NAMES,
@@ -39,6 +42,7 @@ class FourHeatLiteApi:
             raise ValueError("Unknown stove profile")
         self._host = host
         self.profile = profile
+        self._native_schedule_lock = Lock()
 
     @property
     def supports_schedule_write(self) -> bool:
@@ -219,6 +223,35 @@ class FourHeatLiteApi:
         return ["2WC", "1", "05040000"]
 
     @staticmethod
+    def build_ducted_fan_command(level: int, profile: str) -> list:
+        """Channel 1, using the Jolly Mec payload verified in upstream issue #2."""
+        if profile != PROFILE_JOLLYMEC or type(level) is not int or not 0 <= level <= 6:
+            raise ValueError("Jolly Mec ducted fan 1 must be an integer from 0 to 6")
+        # Raw 7 is advertised by the register but its meaning is unverified.
+        return ["2WC", "1", f"050e0266{level:04x}000000070000"]
+
+    def query_ducted_fan(self) -> int | None:
+        """Read the configured channel-1 level, not the fan's actual RPM."""
+        if self.profile != PROFILE_JOLLYMEC:
+            return None
+        payload = self._query('["2WC","1","030e0266"]', min_hex_len=10)
+        return int(payload[6:10], 16) if payload else None
+
+    def set_ducted_fan(self, level: int) -> int:
+        """Write once and require a fresh matching register readback."""
+        command = self.build_ducted_fan_command(level, self.profile)
+        try:
+            response = self._send(json.dumps(command, separators=(",", ":")))
+        except (OSError, ValueError):
+            response = None
+        if isinstance(response, list) and response and response[0] == "ERR":
+            raise ValueError("The stove rejected the ducted fan setting")
+        actual = self.query_ducted_fan()
+        if actual != level:
+            raise ValueError("Ducted fan setting could not be verified; no automatic retry was made")
+        return actual
+
+    @staticmethod
     def build_off_command() -> list:
         """Build OFF command (spegnimento from FileMap)."""
         return ["2WC", "1", "05050000"]
@@ -253,12 +286,8 @@ class FourHeatLiteApi:
 
     @staticmethod
     def parse_ccg_response(response: list) -> dict | None:
-        """Read seven groups of three start/end/flag slots without guessing flags.
-
-        CCG is deliberately distinct from editable H24 schedules. Its mode and
-        per-slot flags are preserved as raw codes until their meaning is verified.
-        """
-        if not isinstance(response, list) or len(response) != 73 or response[0] != "CCG":
+        """Read CCS/CCG while preserving raw codes for unknown firmware."""
+        if not isinstance(response, list) or len(response) != 73 or response[0] not in ("CCG", "CCS"):
             return None
         try:
             if int(response[1]) != len(response) - 2:
@@ -281,9 +310,42 @@ class FourHeatLiteApi:
                             return None
                     slots.append({"start": start, "end": end, "flag_raw": int(response[pos + 2])})
                 days.append({"day": day, "slots": slots})
-            return {"format": "CCG", "mode_raw": mode, "days": days, "read_only": True}
+            schedule = {"format": "CCG", "mode_raw": mode, "days": days}
+            schedule["read_only"] = validate_native_schedule(schedule) is not None
+            return schedule
         except (TypeError, ValueError):
             return None
+
+    def write_native_schedule(self, schedule: dict, expected: dict) -> dict:
+        """Compare, write once directly, then verify actual stored contents.
+
+        A missing acknowledgement never causes a retransmission. The local lock
+        serializes HA edits; a remote control can still race the TCP operation.
+        """
+        if self.profile != PROFILE_JOLLYMEC:
+            raise NativeScheduleError("native_unsupported")
+        command = build_native_schedule(schedule)
+        baseline = build_native_schedule(expected)
+        with self._native_schedule_lock:
+            current = self.query_schedule()
+            if current is None:
+                raise NativeScheduleError("native_read_failed")
+            if build_native_schedule(current) != baseline:
+                raise NativeScheduleError("native_conflict")
+            if command == baseline:
+                return current
+            try:
+                response = self._send(json.dumps(command, separators=(",", ":")))
+            except (OSError, ValueError):
+                response = None
+            if isinstance(response, list) and response and response[0] == "ERR":
+                raise NativeScheduleError("native_rejected")
+            actual = self.query_schedule()
+            if actual is None or validate_native_schedule(actual):
+                raise NativeScheduleError("native_unverified")
+            if build_native_schedule(actual) != command:
+                raise NativeScheduleError("native_unverified")
+            return actual
 
     @staticmethod
     def parse_h24_response(response: list) -> dict | None:

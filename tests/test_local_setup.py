@@ -93,7 +93,7 @@ async def test_local_options_exclude_and_reject_proxy_modes(monkeypatch):
     monkeypatch.setattr(type(flow), 'config_entry', property(lambda _: entry))
     monkeypatch.setattr(flow, 'async_show_form', lambda **kwargs: kwargs)
     monkeypatch.setattr(flow, 'async_abort', lambda **kwargs: kwargs)
-    form = await flow.async_step_init()
+    form = await flow.async_step_settings()
     with pytest.raises(vol.Invalid):
         form['data_schema']({'proxy_mode': const.PROXY_MODE_KEEPALIVE})
     assert await flow.async_step_init({'proxy_mode': const.PROXY_MODE_KEEPALIVE}) == {'reason': 'cloud_setup_required'}

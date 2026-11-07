@@ -75,18 +75,47 @@ packets and more than one receive buffer.
 - Presets are Silent and Power 1–5. They use the offset wire value from issue #2.
 - Temperature and power write payloads are tested against the examples reported
   in issue #2; they were **not sent** to the second installation during validation.
-- Ducted-fan control is not added; its level is exposed as a sensor.
+- **Ducted fan 1 level** is a separate number control (0 = off, levels 1–6).
+  It writes `0e0266`, using the payload verified in issue #2, then reads back
+  that register. It does not change combustion power or turn the stove on.
+  Raw 7 is not exposed because its meaning is unverified. No channel-2 control
+  is added without evidence of a second outlet. This is a configured level,
+  not measured fan RPM.
 
-## CCG schedules
+## Native CCG / CCS schedules
 
-`4heatlite.get_schedule` returns the observed CCG format as seven named day groups,
-each with three start/end/flag slots. It includes `format: CCG`, `read_only: true`,
-`mode_raw`, and per-slot `flag_raw`. These codes are deliberately not interpreted
-as enable flags until verified.
+Open the integration's **Configure** button → **Schedule stored in the stove**.
+The editor reads the current program directly from the module. Choose a timer
+mode and one day or a group, edit three start/stop times and enable checkboxes,
+then review the complete before/after program before saving. Group edits copy
+the first selected day's initial values to every explicitly selected day; all
+other days are preserved. Select **Change mode only** to retain every slot.
+Mode OFF disables the timer without clearing its stored slots.
 
-The CCG format is different from H24 temperature-band schedules. The schedule
-editor is hidden for this profile, and H24 writes are rejected by the service,
-TCP client and proxy queue. Read support does not enable schedule editing.
+`4heatlite.get_schedule` returns `format: CCG`, `mode_raw`, seven named day
+groups, and three slots with `start`, `end`, and `flag_raw` per day. Mode codes
+0/1/2/3 mean disabled/daily/weekly/weekday-weekend. Flags 0/1 mean disabled/enabled.
+The flag interpretation was confirmed by a physical remote change on the second
+installation. The wire format is documented in [Scheduling](SCHEDULING.md#ccs-protocol-chronothermostat).
+
+Native writes use compact `CCS` with count 71, directly over TCP. They never use
+H24 or the cloud/proxy command queue. The editor rereads the program immediately
+before writing and rejects a stale edit; matching readback is required before
+reporting success. A timeout never causes an automatic write retry. An identical
+program is a read-only no-op. Concurrent HA edits are serialized, although a
+physical remote can still race the short read/write interval. A failed readback
+means the write may have taken effect: reopen the editor before retrying.
+
+Unknown modes/flags remain readable but cannot be edited. The initial editor
+supports minute precision, same-day intervals and non-overlapping active slots;
+overnight slots are not implemented. Enabling a program takes effect immediately
+and can start the stove if the current time is inside an active slot. Scheduling
+runs on the module's clock and continues without Home Assistant.
+
+The generic `set_schedule` service remains H24-only and is rejected for this
+profile; use the native options editor. Native CCS encoding and delivery are
+covered offline; hardware acceptance of a changed CCS program is still pending.
+Do not infer this from a successful unchanged-program validation.
 
 ## Validation
 
