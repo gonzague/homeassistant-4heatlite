@@ -328,3 +328,12 @@ def test_observed_shutdown_block_is_not_off():
     assert data['state'] == 9
     assert data['error'] == 32
     assert data['on_off'] == 1
+
+
+def test_confirmed_off_uses_state_despite_retained_raw_alarm_and_flag():
+    data = Api._decode_0310('10200100000000061434001122000000018400', const.PROFILE_JOLLYMEC)
+    coordinator = SimpleNamespace(api=Api('test.invalid', const.PROFILE_JOLLYMEC), data=data)
+    entity = climate.StoveClimate(coordinator, 'Test')
+    assert data['error'] == 32 and data['on_off'] == 1
+    assert entity.hvac_mode == climate.HVACMode.OFF
+    assert entity.hvac_action == climate.HVACAction.OFF

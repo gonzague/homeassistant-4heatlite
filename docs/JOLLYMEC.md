@@ -35,6 +35,13 @@ reusing Lasian alarm descriptions. This observation is not a general decoding
 rule. The [manufacturer's SM208 manual, page 22](https://jm-poeles.com/Allegati/RadioCommande/2_sm208_fr.pdf)
 describes the lack-of-depression alarm as a safety-pressure-switch trip.
 
+After the user acknowledged that alarm on the remote, the remote displayed OFF
+and three consecutive network samples reported state 0, while the raw alarm byte
+remained 32 and the legacy `on_off` byte remained 1. These bytes must not be used
+alone to infer current heating or an active alarm. The climate entity uses the
+operating state for its OFF status. The error sensor reports the received value;
+it does not claim to distinguish an active alarm from a retained one.
+
 The combustion raw value is also kept as `power_raw` in coordinator data. Raw 7
 has no verified user-facing meaning, so it is not offered as a preset. Negative
 or high-bit room-temperature words are not published as unsigned temperatures:
@@ -58,7 +65,9 @@ packets and more than one receive buffer.
   physical remote confirmed ignition. One OFF command was subsequently
   acknowledged and state 7 (final cleaning) was observed. During cooldown the
   stove entered state 9 with raw error 32, confirmed on the remote as lack of
-  depression. A normal completed OFF transition has not yet been validated.
+  depression. After the user acknowledged the alarm on the physical remote,
+  OFF was confirmed on the remote and by three consecutive state-0 reads. An
+  uninterrupted automatic shutdown without that alarm has not been validated.
 - Target temperatures use a step of 1 °C and the whole-degree wire format from
   issue #2. Values outside 10–40 or with fractional degrees are rejected.
 - Presets are Silent and Power 1–5. They use the offset wire value from issue #2.
